@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CHIMERA 보이스 - 물리모델링 성대 합성기</title>
+<style>
+  :root{--bg:#0b0f14;--panel:#121923;--line:#223042;--text:#e6edf5;--mute:#8da2b8;--accent:#5ee0c0;--accent2:#7aa7ff;--warn:#ffb86b}
+  @media (prefers-color-scheme: light){:root{--bg:#f6f8fb;--panel:#fff;--line:#d8e0ea;--text:#16202c;--mute:#566a80;--accent:#0a8f74;--accent2:#2f5fd0;--warn:#b86a00}}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:16px/1.65 system-ui,-apple-system,"Noto Sans KR","Malgun Gothic",sans-serif}
+  .wrap{max-width:960px;margin:0 auto;padding:32px 16px 64px}
+  h1{font-size:2.2rem;letter-spacing:.12em;margin:0 0 4px;color:var(--accent)}
+  .sub{color:var(--mute);margin:0 0 24px}
+  h2{font-size:1.25rem;margin:40px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+  .grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+  .card b{color:var(--accent2)}
+  .card p{margin:6px 0 0;color:var(--mute);font-size:.95rem}
+  .tag{display:inline-block;font-size:.75rem;border:1px solid var(--line);border-radius:99px;padding:1px 10px;color:var(--mute);margin-right:4px}
+  svg{width:100%;height:auto;background:var(--panel);border:1px solid var(--line);border-radius:10px}
+  svg text{fill:var(--text);font-size:13px;font-family:inherit}
+  svg .box{fill:none;stroke:var(--accent2);stroke-width:1.5}
+  svg .hi{stroke:var(--accent)}
+  svg .arr{stroke:var(--mute);stroke-width:1.5;fill:none;marker-end:url(#a)}
+  table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:.95rem}
+  th,td{padding:8px 12px;text-align:left;border-bottom:1px solid var(--line)}
+  th{color:var(--mute);font-weight:600}
+  tr:last-child td{border-bottom:0}
+  pre{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;overflow-x:auto;font-size:.88rem}
+  code{font-family:ui-monospace,Menlo,Consolas,monospace;color:var(--accent)}
+  .note{border-left:3px solid var(--warn);padding:6px 12px;color:var(--mute);background:var(--panel);border-radius:0 8px 8px 0}
+  a{color:var(--accent2)}
+  footer{margin-top:48px;color:var(--mute);font-size:.85rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>CHIMERA</h1>
+  <p class="sub">브라우저 속 물리모델링 보이스 신디사이저 · 샘플 없음, 신경망 없음 — 시뮬레이션된 기도(氣道)에서 소리가 나온다</p>
+  <p><span class="tag">Rust → WebAssembly</span><span class="tag">AudioWorklet</span><span class="tag">MIT</span><span class="tag">jamesondh/chimera-vocal-synth</span></p>
+
+  <h2>한 줄 요약</h2>
+  <p>폐 → 성대(또는 새의 명관) → 가지 친 성도 → 입술·코까지 공기 흐름을 FDTD로 시뮬레이션해 목소리를 만든다. 녹음된 소리를 재생하지 않고, 혀·턱·입술을 움직이면 그 모양에서 소리가 계산된다.</p>
+
+  <h2>소리가 나오는 경로</h2>
+  <svg viewBox="0 0 900 250" role="img" aria-label="신호 흐름도">
+    <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#8da2b8"/></marker></defs>
+    <rect class="box" x="20" y="30" width="150" height="56" rx="8"/><text x="95" y="55" text-anchor="middle">UI / 키보드 / MIDI</text><text x="95" y="73" text-anchor="middle">텍스트 · 가사 · 드래그</text>
+    <rect class="box" x="230" y="30" width="170" height="56" rx="8"/><text x="315" y="55" text-anchor="middle">Controller</text><text x="315" y="73" text-anchor="middle">제스처 → 조음기관 동역학</text>
+    <rect class="box" x="460" y="30" width="170" height="56" rx="8"/><text x="545" y="55" text-anchor="middle">Anatomy</text><text x="545" y="73" text-anchor="middle">조음 상태 → 단면적 함수</text>
+    <rect class="box hi" x="690" y="30" width="190" height="56" rx="8"/><text x="785" y="55" text-anchor="middle">Sources (음원)</text><text x="785" y="73" text-anchor="middle">성대 · 명관 · 입술 밸브</text>
+    <rect class="box hi" x="690" y="150" width="190" height="64" rx="8"/><text x="785" y="176" text-anchor="middle">Airway (FDTD 관망)</text><text x="785" y="196" text-anchor="middle">내부 96kHz, 가지·벽·손실</text>
+    <rect class="box" x="460" y="150" width="170" height="64" rx="8"/><text x="545" y="176" text-anchor="middle">방사 + FX</text><text x="545" y="196" text-anchor="middle">마이크·EQ·컴프·리버브</text>
+    <rect class="box" x="230" y="150" width="170" height="64" rx="8"/><text x="315" y="176" text-anchor="middle">출력 (WebAudio)</text><text x="315" y="196" text-anchor="middle">+ 텔레메트리 ~60Hz</text>
+    <rect class="box" x="20" y="150" width="150" height="64" rx="8"/><text x="95" y="176" text-anchor="middle">화면 렌더러</text><text x="95" y="196" text-anchor="middle">머리 단면 · 스펙트럼</text>
+    <path class="arr" d="M170 58H228"/><path class="arr" d="M400 58H458"/><path class="arr" d="M630 58H688"/>
+    <path class="arr" d="M785 86V148"/><path class="arr" d="M690 182H632"/><path class="arr" d="M460 182H402"/><path class="arr" d="M230 182H172"/>
+  </svg>
+
+  <h2>핵심 구성요소</h2>
+  <div class="grid">
+    <div class="card"><b>기도 음향 (FDTD)</b><p>스태거드 그리드 전송선. 비강·피리형와·두 기관지 등 분기, 벽 진동, 난류 잡음, 입술 방사를 한 틀에서 처리.</p></div>
+    <div class="card"><b>성대 음원</b><p>기본은 성문 면적 펄스(피치 정확). 고급 모드는 2질량 성대(Ishizaka–Flanagan) 자기진동 모델. 지터·비브라토·보컬 프라이·가성 지원.</p></div>
+    <div class="card"><b>조음 제스처</b><p>조음음운론 방식. 음소 = 제스처 묶음, 조음기관은 임계감쇠 2차 동역학으로 움직여 동시조음이 자연히 생김.</p></div>
+    <div class="card"><b>체형 블렌드</b><p>남성·여성·아이 체형을 연속으로 섞음. 포먼트 왜곡이 아니라 해부학적 스케일링.</p></div>
+    <div class="card"><b>동물 도감</b><p>명금류(2음원 명관), 물범, 악어, 코끼리. 같은 토폴로지에 종별 파라미터.</p></div>
+    <div class="card"><b>결정론 · 실시간 안전</b><p>같은 코드가 네이티브 테스트·CLI·웹에서 동일하게 돌아감.</p></div>
+  </div>
+
+  <h2>기능</h2>
+  <table>
+    <tr><th>모드</th><th>설명</th></tr>
+    <tr><td>Play</td><td>머리 단면에서 혀·입술·턱 드래그, 모음 패드, 키보드, Web MIDI</td></tr>
+    <tr><td>Speak</td><td>영어 텍스트(CMUdict) 또는 IPA → 제스처·운율. 제스처 스코어와 자음표 표시</td></tr>
+    <tr><td>Sing</td><td>가사를 분위기에 맞는 곡조로 노래. 9:16 영상 녹화. <b>한국어(한글) · 영어 · 러시아어</b> 가사 지원, 한국어 음운 규칙 적용</td></tr>
+    <tr><td>Beatbox</td><td>패드 + 스텝 시퀀서, 모든 드럼이 조음 제스처</td></tr>
+    <tr><td>Bestiary</td><td>새, 물범, 악어, 코끼리</td></tr>
+    <tr><td>Duet</td><td><code>?show=&lt;id&gt;</code> 로 두 개의 3D 머리가 미리 렌더된 노래를 재생</td></tr>
+  </table>
+
+  <h2>실행 방법</h2>
+  <pre>bun install
+bun run dev      # wasm 빌드 후 Vite, 127.0.0.1:5317
+bun run test     # wasm 빌드 + cargo test + bun test</pre>
+  <p>Rust(<code>wasm32-unknown-unknown</code> 타깃)와 Bun 필요. AudioWorklet 때문에 localhost 또는 HTTPS에서 열어야 함.</p>
+  <pre># 오프라인 렌더 / 측정 (CLI)
+cargo run --release -p chimera-cli -- render speech|text|song|notes|beatbox|creature|vowels
+cargo run --release -p chimera-cli -- diagnose
+cargo run --release -p chimera-cli -- compare csd   # 실제 가수와 비교
+cargo run --release -p chimera-cli -- compare tsp   # 실제 화자 23명과 비교</pre>
+
+  <h2>저장소 구조</h2>
+  <div class="grid">
+    <div class="card"><b>crates/chimera</b><p>핵심 엔진 (Rust)</p></div>
+    <div class="card"><b>crates/chimera-wasm</b><p>브라우저용 wasm 바인딩</p></div>
+    <div class="card"><b>crates/chimera-cli</b><p>렌더·진단·비교 CLI</p></div>
+    <div class="card"><b>src/ · public/</b><p>React UI, 캔버스 렌더러, 사전·폰트</p></div>
+  </div>
+
+  <h2>범위 밖 / 미구현</h2>
+  <p class="note">DAW·시퀀서, 라이트 테마, MPE, 다중 화자 대화는 지금 목표 아님. 더 많은 동물, 앱 내 WAV 내보내기 등은 아직 없음. 2질량 성대는 설계상 있으나 기본은 파라미터 성문 모델.</p>
+
+  <footer>출처: github.com/jamesondh/chimera-vocal-synth 의 README 및 docs/architecture.md 요약 (MIT). 비공식 한국어 정리.</footer>
+</div>
+</body>
+</html>
