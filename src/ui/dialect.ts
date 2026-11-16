@@ -2,14 +2,25 @@ import { create } from "zustand";
 import type { KoreanDialect } from "../wasm/engine.ts";
 
 const KEY = "chimera.dialect";
-const DIALECTS: KoreanDialect[] = ["seoul", "gyeongsang", "jeju", "middle"];
+
+/** The reading menu's choices (six regional dialects and Middle Korean), as labels to translate. */
+export const DIALECT_OPTIONS: { value: KoreanDialect; label: string }[] = [
+  { value: "central", label: "Central dialect (Seoul)" },
+  { value: "southwest", label: "Southwestern dialect" },
+  { value: "southeast", label: "Southeastern dialect" },
+  { value: "jeju", label: "Jeju dialect" },
+  { value: "northwest", label: "Northwestern dialect" },
+  { value: "northeast", label: "Northeastern dialect" },
+  { value: "middle", label: "Middle Korean (15th c.)" },
+];
 
 /** How Hangul reads, on the Speak and Sing screens alike (kept across visits). */
 export const useDialect = create<{ dialect: KoreanDialect; setDialect: (d: KoreanDialect) => void }>((set) => {
-  let dialect: KoreanDialect = "seoul";
+  let dialect: KoreanDialect = "central";
   try {
     const v = localStorage.getItem(KEY) as KoreanDialect | null;
-    if (v && DIALECTS.includes(v)) dialect = v;
+    const saved = v === "seoul" ? "central" : v === "gyeongsang" ? "southeast" : v;
+    if (saved && DIALECT_OPTIONS.some(({ value }) => value === saved)) dialect = saved;
   } catch {}
   return {
     dialect,
@@ -24,11 +35,3 @@ export const useDialect = create<{ dialect: KoreanDialect; setDialect: (d: Korea
 
 /** Hangul, modern or Old (conjoining jamo): the text has Korean to read in a dialect. */
 export const HANGUL = /[가-힣ᄀ-ᇿ]/;
-
-/** The reading menu's choices (standard, the regional dialects, Middle Korean), as labels to translate. */
-export const DIALECT_OPTIONS: { value: KoreanDialect; label: string }[] = [
-  { value: "seoul", label: "Standard (Seoul)" },
-  { value: "gyeongsang", label: "Gyeongsang dialect" },
-  { value: "jeju", label: "Jeju dialect" },
-  { value: "middle", label: "Middle Korean (15th c.)" },
-];

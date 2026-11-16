@@ -18,8 +18,8 @@ const USAGE: &str = "\
 usage: chimera <command> [args] [--float]
 
   render speech  <out> [\"ipa / ipa\"] [male|female|child]
-  render text    <out> [\"English text.\"] [male|female|child] [seoul|gyeongsang]
-                 (Hangul reads in the dialect; in gyeongsang an acute marks a high syllable: 가́지)
+  render text    <out> [\"English text.\"] [male|female|child] [reading]
+                 (central, southwest, southeast, jeju, northwest, northeast, middle)
   render song    [outdir] [male|female|child]
   render notes   <in.json> <out> [male|female|child] [--artic tracks.json] [--tele voice.tele]
                  (melody file; midi <= 0 is a rest; --artic also writes the articulators at 100 Hz)

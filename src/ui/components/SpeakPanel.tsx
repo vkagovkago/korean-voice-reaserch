@@ -19,13 +19,14 @@ import { engine } from "../../audio/AudioEngine.ts";
 
 const EXAMPLES = ["Hello. Can you hear me?", "She sells sea shells by the sea shore.", "Every sound here is air moving through a throat.", "The quick brown fox jumps over the lazy dog."];
 
-/**
- * The preface of Hunminjeongeum (1446) in its 15th-century Korean, as the 언해본 has it (월인석보 권1):
- * the 해례본's own preface is in Classical Chinese, which the voice can't read. The Chinese
- * characters stay beside their 동국정운 readings (the voice reads the readings); the tone dots are
- * left out. Read in the Middle Korean setting.
- */
-const PREFACE = "나랏 말ᄊᆞ미 中듀ᇰ國귁에 달아 文문字ᄍᆞᆼ와로 서르 ᄉᆞᄆᆞᆺ디 아니ᄒᆞᆯᄊᆡ, 이런 젼ᄎᆞ로 어린 百ᄇᆡᆨ姓셔ᇰ이 니르고져 호ᇙ 배 이셔도 ᄆᆞᄎᆞᆷ내 제 ᄠᅳ들 시러 펴디 몯ᄒᆞᇙ 노미 하니라. 내 이ᄅᆞᆯ 爲윙ᄒᆞ야 어엿비 너겨 새로 스믈여듧 字ᄍᆞᆼᄅᆞᆯ ᄆᆡᇰᄀᆞ노니, 사ᄅᆞᆷ마다 ᄒᆡᅇᅧ 수ᄫᅵ 니겨 날로 ᄡᅮ메 便뼌安ᅙᅡᆫ킈 ᄒᆞ고져 ᄒᆞᇙ ᄯᆞᄅᆞ미니라.";
+// Hunminjeongeum eonhae, Wolin seokbo vol. 1. Punctuation and spaces are editorial.
+// Facsimile on slide 4: https://contents.kocw.or.kr/document/lec/2012/ChungNam/HongSungShim/09.pdf
+const PREFACE = [
+  "나랏〮말〯ᄊᆞ미〮 中듀ᇰ國귁〮에〮 달아〮 文문字ᄍᆞᆼ〮와〮로〮 서르 ᄉᆞᄆᆞᆺ디〮 아니〮ᄒᆞᆯᄊᆡ〮,",
+  "이〮런 젼ᄎᆞ〮로〮 어린〮 百ᄇᆡᆨ셔ᇰ〮이〮 니르고〮져〮 호ᇙ〮 배〮 이셔〮도〮 ᄆᆞᄎᆞᆷ〮내〯 제 ᄠᅳ〮들〮 시러〮 펴디〮 몯〯ᄒᆞᇙ 노〮미〮 하니〮라〮.",
+  "내〮 이〮ᄅᆞᆯ〮 爲윙〮ᄒᆞ〮야〮 어〯엿비〮 너겨〮 새〮로〮 스〮믈〮여듧〮 字ᄍᆞᆼ〮ᄅᆞᆯ〮 ᄆᆡᇰᄀᆞ〮노니〮,",
+  "사〯ᄅᆞᆷ 마〯다〮 ᄒᆡ〯ᅇᅧ〮 수〯ᄫᅵ〮 니겨〮 날〮로〮 ᄡᅮ〮메〮 便뼌安ᅙᅡᆫ킈〮 ᄒᆞ고〮져〮 ᄒᆞᇙᄯᆞᄅᆞ미〮니라〮.",
+].join(" ");
 
 // IPA pulmonic consonant chart (rows = manner, columns = place); empty cells are null
 const PLACES = ["Bilabial", "Labiodental", "Dental", "Alveolar", "Postalveolar", "Retroflex", "Palatal", "Velar", "Uvular", "Pharyngeal", "Glottal"];
@@ -221,8 +222,9 @@ export function SpeakRight() {
           {!ipa && <KoreanInput target={sayBox} value={text} onChange={setText} />}
           <div className="say-row">
             <div className="say-read">
+              {!ipa && dialect === "northeast" && HANGUL.test(text) && <p className="say-hint">{t("Mark tone after the syllable: 가〮 high, 가〯 rising")}</p>}
               {/* the accent mark barely shows over Hangul in most fonts: say how to type it */}
-              {!ipa && dialect === "gyeongsang" && HANGUL.test(text) && <p className="say-hint">{t("Mark a high syllable with an acute after it: 가́지")}</p>}
+              {!ipa && dialect === "southeast" && HANGUL.test(text) && <p className="say-hint">{t("Mark a high syllable with an acute after it: 가́지")}</p>}
               <p className="transcription" aria-live="polite">
                 {trans ? `/${trans}/` : ""}
               </p>

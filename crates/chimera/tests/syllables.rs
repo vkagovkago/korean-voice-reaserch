@@ -307,11 +307,12 @@ fn the_15th_century_reading_has_its_vowels_diphthongs_eight_finals_and_tones() {
     // a final ㅅ stays [s] (옷 [os], not modern [ot])
     assert_eq!(read_as("옷", mk), "os");
     assert_eq!(read_as("옷", Options::default()), "ot");
-    // tone dots: one high, two high and long, none low
-    let n = |t: &str| word_syllables_with(t, &mk).iter().map(|s| (s.nucleus.stress, s.nucleus.dur)).collect::<Vec<_>>();
-    assert_eq!(n("ᄆᆞᆯ〮"), [(Some(1), None)]);
-    assert_eq!(n("ᄆᆞᆯ〯"), [(Some(1), Some(0.25))]);
-    assert_eq!(n("ᄆᆞᆯ"), [(None, None)]);
+    // tone dots: one high, two rising and long, none low
+    use chimera::phonetics::Tone;
+    let n = |t: &str| word_syllables_with(t, &mk).iter().map(|s| (s.nucleus.tone, s.nucleus.dur)).collect::<Vec<_>>();
+    assert_eq!(n("ᄆᆞᆯ〮"), [(Some(Tone::High), None)]);
+    assert_eq!(n("ᄆᆞᆯ〯"), [(Some(Tone::Rising), Some(0.25))]);
+    assert_eq!(n("ᄆᆞᆯ"), [(Some(Tone::Low), None)]);
     // modern Seoul is as before
     assert_eq!(read_as("개", Options::default()), "kʰ45ɛ".replace("ʰ45", ""));
 }
@@ -333,11 +334,11 @@ fn old_hangul_clusters_read_as_clusters_or_the_siot_series_as_tense() {
 }
 
 #[test]
-fn jeju_reads_arae_a_as_a_low_back_rounded_vowel() {
+fn jeju_reads_arae_a_as_a_mid_back_rounded_vowel() {
     use chimera::phonetics::korean::{Dialect, Options};
     let jeju = Options { dialect: Dialect::Jeju, ..Default::default() };
-    assert_eq!(read_as("ᄆᆞᆯ", jeju), "mɒl");
-    assert_eq!(read_as("ᄋᆢ덥", jeju), "jɒ.dʌp");
+    assert_eq!(read_as("ᄆᆞᆯ", jeju), "mɔl");
+    assert_eq!(read_as("ᄋᆢ덥", jeju), "jɔ.dʌp");
     // the rest is modern
     assert_eq!(read_as("말", jeju), "mal");
 }
@@ -357,4 +358,43 @@ fn the_preface_letters_read_vowel_after_vowel_double_ieung_and_final_rieul_hieut
     let syls = lyrics_to_syllables(text, &word);
     let blocks = text.chars().filter(|c| ('\u{AC00}'..='\u{D7A3}').contains(c) || ('\u{1161}'..='\u{11A7}').contains(c)).count();
     assert_eq!(syls.len(), blocks);
+}
+
+
+#[test]
+fn regional_profiles_apply_distinct_pronunciation_rules() {
+    use chimera::phonetics::korean::{Dialect, Options};
+    let read = |word, name| read_as(word, Options { dialect: Dialect::from_name(name).unwrap(), ..Default::default() });
+    assert_eq!(read("개", "central"), "ke");
+    assert_eq!(read("의사", "southwest"), "ɯ.sa");
+    assert_eq!(read("서으", "southeast"), "sə.ə");
+    assert_eq!(read("ᄆᆞᆯ", "jeju"), "mɔl");
+    assert_eq!(read("같이", "northwest"), "ka.ti");
+    assert_eq!(read("의자", "northeast"), "i.dza");
+    assert_eq!(Dialect::from_name("gyeongsang"), Dialect::from_name("southeast"));
+    assert_eq!(read("개", "seoul"), "kɛ");
+}
+
+#[test]
+fn middle_korean_rises_inside_the_vowel_even_at_the_end_of_a_statement() {
+    use chimera::control::score::{ControlKey, activation};
+    use chimera::phonetics::english::EnglishG2P;
+    use chimera::phonetics::korean::{Dialect, Options};
+    use chimera::phonetics::planner::{PlanOptions, plan_utterance};
+
+    let mut g = EnglishG2P::default();
+    g.korean = Options { dialect: Dialect::Middle, ..Default::default() };
+    let phrase = &g.to_phrases("말〯.")[0];
+    let plan = plan_utterance(&phrase.segments, &PlanOptions { intonation: Some(phrase.intonation), ..Default::default() });
+    let vowel = plan.segments.iter().find(|s| s.ipa == "a").unwrap();
+    let f0_at = |fraction: f64| {
+        let at = vowel.t0 + fraction * (vowel.t1 - vowel.t0);
+        let (sum, weight) = plan.gestures.iter().filter_map(|g| {
+            let hz = g.targets.get(ControlKey::F0)?;
+            let weight = activation(g, at) * g.strength;
+            Some((hz * weight, weight))
+        }).fold((0.0, 0.0), |(sum, weight), (s, w)| (sum + s, weight + w));
+        sum / weight
+    };
+    assert!(f0_at(0.2) < f0_at(0.5) && f0_at(0.5) < f0_at(0.8));
 }

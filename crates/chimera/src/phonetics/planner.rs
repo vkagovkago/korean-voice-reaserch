@@ -7,7 +7,7 @@
 
 use super::durations::{SegInfo, klatt_durations};
 use super::inventory::{Glottal, Manner, PhonemeDef, Voicing, phoneme};
-use super::{Intonation, Plan, PlannedSegment, Segment};
+use super::{Intonation, Plan, PlannedSegment, Segment, Tone};
 use crate::anatomy::human::{ArticKey, ArticPatch, BodyMix, BodyName};
 use crate::control::score::{ControlKey, Gesture, Targets};
 use crate::math::{js_max, js_min, js_round};
@@ -163,6 +163,7 @@ fn one(k: impl Into<ControlKey>, x: f64) -> Targets {
 
 /// A planner segment: the input segment plus what the planner attaches to it.
 struct Seg<'a> {
+    tone: Option<Tone>,
     ipa: &'a str,
     dur: Option<f64>,
     stress: Option<u8>,
@@ -219,10 +220,10 @@ pub fn plan_utterance(input: &[Segment], o: &PlanOptions) -> Plan {
             let base = durs[si];
             for (i, p) in parts.iter().enumerate() {
                 let dur = if parts.len() > 1 { base * (if i == 0 { 0.55 } else { 0.45 }) } else { base };
-                segs.push(Seg { ipa: p, dur: Some(dur), stress: s.stress, f0: s.f0, def: None, vowel: None, glide_from: i > 0, aspirated: None, vot: None, nasalized: s.nasalized, palatalized: None, breathy: s.breathy, fortis: None });
+                segs.push(Seg { tone: s.tone, ipa: p, dur: Some(dur), stress: s.stress, f0: s.f0, def: None, vowel: None, glide_from: i > 0, aspirated: None, vot: None, nasalized: s.nasalized, palatalized: None, breathy: s.breathy, fortis: None });
             }
         } else {
-            segs.push(Seg { ipa: &s.ipa, dur: Some(durs[si]), stress: s.stress, f0: s.f0, def: None, vowel: None, glide_from: false, aspirated: s.aspirated, vot: s.vot, nasalized: s.nasalized, palatalized: s.palatalized, breathy: s.breathy, fortis: s.fortis });
+            segs.push(Seg { tone: s.tone, ipa: &s.ipa, dur: Some(durs[si]), stress: s.stress, f0: s.f0, def: None, vowel: None, glide_from: false, aspirated: s.aspirated, vot: s.vot, nasalized: s.nasalized, palatalized: s.palatalized, breathy: s.breathy, fortis: s.fortis });
         }
     }
     for s in segs.iter_mut() {
@@ -431,6 +432,24 @@ pub fn plan_utterance(input: &[Segment], o: &PlanOptions) -> Plan {
         let hold = if n < v_idx.len() - 1 { js_max(t1, times[v_idx[n + 1]].t0 - 0.03) } else { t1 };
         let mut target: f64;
         let has_f0 = truthy(s.f0);
+        if !sung && !has_f0 && let Some(tone) = s.tone {
+            // Pitch targets are relative to the selected speaking voice. An equal-weight
+            // crossfade keeps rising tone continuous and reaches high before the coda.
+            let low = f0 * 0.9;
+            let high = f0 * 1.15;
+            let ramp = pitch_ramp(t1 - t0);
+            if tone == Tone::Rising {
+                let rise_start = t0 + 0.30 * (t1 - t0);
+                let rise_end = t0 + 0.70 * (t1 - t0);
+                let rise = rise_end - rise_start;
+                gestures.push(Gesture::new(t0, rise_start, ramp, rise, 2.0, one(ControlKey::F0, low)).label("pitch"));
+                gestures.push(Gesture::new(rise_end, hold, rise, ramp, 2.0, one(ControlKey::F0, high)).label("pitch"));
+            } else {
+                let target = if tone == Tone::Low { low } else { high };
+                gestures.push(Gesture::new(t0, hold, ramp, ramp, 2.0, one(ControlKey::F0, target)).label("pitch"));
+            }
+            continue;
+        }
         if has_f0 {
             target = s.f0.unwrap();
         } else {

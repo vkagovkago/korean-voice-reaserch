@@ -100,23 +100,51 @@ clusters included), and the tone dots and the accent mark. It moves from initial
 as you type, and types at the caret without raising a phone's own keyboard. Speak's examples
 include the preface of Hunminjeongeum in its 15th-century Korean (the 언해본's; the 해례본's own
 preface is Classical Chinese, which the voice can't read), with its Chinese characters beside
-their 동국정운 readings and without the tone dots; picking it switches to Middle Korean. English's allophones (flapping, dark /l/) apply to English words only,
-so Korean words in speech keep a clear final [l] (살) and an unflapped [d] (바다).
+their 동국정운 readings and the [transcribed tone dots](https://atlas.mkhz.kr/archive/hunminjeongeum-eonhae/hmje_01_seomun). The dots were checked against the [facsimile on slide 4](https://contents.kocw.or.kr/document/lec/2012/ChungNam/HongSungShim/09.pdf). Picking the example switches to Middle Korean. English's allophones
+(flapping, dark /l/) apply to English only.
 
-- **seoul** (the default): modern standard speech; accent marks and tone dots are kept in the text
-  and not said.
-- **gyeongsang** (a pilot): ㅓ and ㅡ are one vowel, [ə] (ㅕ ㅝ too); ㅆ is said as ㅅ (쌀 = 살); and
-  pitch accent. Which syllables are high is each word's, by region and speaker, and there is no
-  lexicon here, so the input marks them with an acute after the block (가́지 high-low, 가지́
-  low-high; the Speak screen says how). The planner's accent raises a marked syllable (about 3
-  semitones in the male voice), and lengthens it as it does a stressed one. Not modelled: rising
-  (long) tones, the accent's real size and timing, regional and generational differences.
-- **jeju** (a pilot): ㆍ, still written there, is [ɒ], and ᆢ [jɒ] (ᄆᆞᆯ [mɒl], ᄋᆢ덥 [jɒ.dʌp]).
-- **middle**, the 15th century as most reconstructions have it (이기문's vowel system): ㅓ [ə], ㅡ
-  [ɨ], ㆍ by its hypothesis; ㅐ ㅔ ㅚ ㅟ ㅢ ㆎ are diphthongs ending in [j] (개 [kaj], 긔 [kɨj]); a final
-  ㅅ stays [s] (옷 [os]: eight finals, not seven); and the tone dots: none low (平聲), one high
-  (去聲), two high and long (上聲, whose rise the planner can't draw inside a syllable). The other
-  consonants and the sound rules stay modern.
+The six regional readings cover selected pronunciation features. They apply to the spelling
+entered and depend on the user for regional vocabulary, endings, and lexical tone marks.
+
+- **central** (the app default): Seoul-based, with a modern merger of ㅐ and ㅔ.
+  [Seoul vowel merger](https://www.kci.go.kr/kciportal/ci/sereArticleSearch/ciSereArtiView.kci?sereArticleSearchBean.artiId=ART002914117).
+  Omitted API/CLI readings and the legacy **seoul** identifier still select the original standard reading.
+- **southwest**: ㅢ reads [ɯ], as in 의사. [Southwestern dialect](https://encykorea.aks.ac.kr/Article/E0027670).
+- **southeast** (alias **gyeongsang**): ㅓ and ㅡ merge as [ə] and ㅆ reads as ㅅ.
+  An acute marks a high syllable (가́지). The speech planner approximates the accent with
+  its existing pitch and length targets. Word-initial low boundaries, the following low,
+  focus and age-specific timing are still unmodelled.
+  [Jun et al. 2006](https://linguistics.ucla.edu/people/jun/papers%20in%20pdf/Jun_Kim_Lee_Jun-J%20of%20EastAsianLing-2006.pdf).
+- **jeju**: ㆍ is [ɔ] following the recorded-vowel analysis of
+  [Kim 2005](https://www.kci.go.kr/kciportal/landing/article.kci?arti_id=ART000965998), and ᆢ is [jɔ].
+- **northwest**: suppresses ㄷ/ㅌ palatalization before 이 (같이); ㅈ-series affricates use an
+  alveolar place. [Northwestern dialect](https://encykorea.aks.ac.kr/Article/E0027782).
+- **northeast**: takes northern Hamgyong alveolar affricates and ㅢ as [i]. An acute or one
+  dot marks high (가〮), and two dots mark a long rise (가〯), following the three-way inventories
+  described for Gilju, Seongjin and Dancheon. Tone marks are input annotations.
+  [Northeastern dialect](https://encykorea.aks.ac.kr/Article/E0016526).
+- **middle**: 15th-century vowels ㅓ [ə], ㅡ [ɨ], ㆍ by its hypothesis, and ㅐ ㅔ ㅚ ㅟ ㅢ ㆎ ending in
+  [j]. Final ㅅ stays [s]. No dot gives low (平聲), one dot gives high (去聲), and two give a rise
+  inside a lengthened vowel (上聲). The low and high targets are 90% and 115% of the selected
+  speaking pitch, with the transition across the middle 40% of the vowel. These are synthesis
+  settings. The planner gives explicit lexical tones priority over its default phrase contour.
+
+#### Comparison with recorded-speaker measurements
+
+- Middle Korean: in the 110 Hz male voice, the 250 ms vowel of 말〯 reached 99, 104 and 122 Hz
+  at 25%, 50% and 75% of its duration (engine telemetry). 말 without a dot stayed near 99 Hz,
+  and 말〮 near 126 Hz.
+- Southeastern: the synthesized 어무́이 contained a peak near 129 Hz in the marked second
+  vowel, up from roughly 108 Hz in the first vowel (about 3 semitones). Jun et al. (2006),
+  table 1, report a larger penultimate contrast for speaker JH (188 to 254 Hz in subject
+  position, about 5.2 semitones). The peak falls in the expected vowel, and the current model
+  has a smaller excursion in this spot check. The study also reports a later post-accent low
+  beyond the model's simple phrase fall.
+- Jeju: a 30 ms window at the first vowel's midpoint in a male synthesis of ᄆᆞᆯ gave
+  F1 554–621 Hz and F2 974–1062 Hz (LPC orders 12, 14 and 16 at 12 kHz). The older male
+  speaker in [Kim et al. 2018](https://www.eksss.org/archive/view_article?pid=pss-10-1-57)
+  averaged 549 and 954 Hz across the study items. The estimates depend on the measurement
+  method, and this comparison uses the published averages.
 
 Sung lyrics read in the same setting; in a song the melody and the notes set pitch and length, so
 accents and tone dots do nothing there.

@@ -32,6 +32,9 @@ pub struct Segment {
     /// explicit pitch (Hz) for this segment (singing)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub f0: Option<f64>,
+    /// lexical tone on a spoken vowel
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tone: Option<Tone>,
     /// word boundary after this segment
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub word_end: Option<bool>,
@@ -65,6 +68,14 @@ impl Segment {
     pub fn new(ipa: &str) -> Segment {
         Segment { ipa: ipa.to_string(), ..Default::default() }
     }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Tone {
+    Low,
+    High,
+    Rising,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]

@@ -121,11 +121,8 @@ export class EnglishG2P {
   }
 }
 
-/**
- * How Hangul reads: Seoul; the Gyeongsang pilot (ㅓ = ㅡ, ㅆ = ㅅ, an acute marks a high syllable: 가́지);
- * Jeju (ㆍ [ɒ]); or the 15th century (ㅓ [ə] ㅡ [ɨ], ㅐ [aj] …, final ㅅ [s], tone dots).
- */
-export type KoreanDialect = "seoul" | "gyeongsang" | "jeju" | "middle";
+/** Six regional profiles, Middle Korean, and the legacy Seoul and Gyeongsang identifiers. */
+export type KoreanDialect = "seoul" | "gyeongsang" | "central" | "southwest" | "southeast" | "jeju" | "northwest" | "northeast" | "middle";
 
 /** Lyrics → sung syllables, through the page's dictionary (see EnglishG2P); Hangul reads in `dialect`. */
 export function lyricsToSyllables(text: string, dialect: KoreanDialect = "seoul"): Syllable[] {

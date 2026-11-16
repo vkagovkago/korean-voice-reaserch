@@ -14,7 +14,7 @@
 //! ㅈ ㅊ ㅉ are alveolo-palatal [tɕ], and ㅅ ㅆ before [i] or [j] are [ɕ].
 
 use super::syllables::FrontEnd;
-use super::{Segment, Syllable};
+use super::{Segment, Syllable, Tone};
 
 const BASE: u32 = 0xAC00;
 
@@ -36,18 +36,20 @@ pub enum Dialect {
     /// standard Seoul speech: no lexical pitch, accent marks ignored
     #[default]
     Seoul,
+    Central,
     /// Gyeongsang (a pilot profile, three features most accounts agree on): ㅓ and ㅡ merge as [ə];
     /// ㅆ is said as ㅅ (쌀 = 살); pitch accent, a syllable marked with an acute (가́지) said high.
     /// Which syllables are high is the word's, by region and speaker; with no lexicon here, the
     /// input marks them. Not modelled: rising (long) tones, regional and generational differences.
     Gyeongsang,
-    /// Jeju (a pilot profile): ㆍ, still written there, is [ɒ], and ᆢ [jɒ] (ᄆᆞᆯ, ᄋᆢ덥).
+    Southwest,
+    Northwest,
+    Northeast,
+    /// Jeju: mid back rounded [ɔ] for ㆍ and [jɔ] for ᆢ (Kim 2005).
     Jeju,
     /// the 15th century, as most reconstructions have it (이기문's vowel system): ㅓ [ə], ㅡ [ɨ],
     /// ㆍ by its hypothesis; ㅐ ㅔ ㅚ ㅟ ㅢ ㆎ diphthongs ending in [j] (ㅐ [aj]); a final ㅅ said [s]
-    /// (eight finals, not seven); and the tone dots: one (去聲) high, two (上聲) high and long, for a
-    /// rise the planner can't draw within a syllable. The other consonants and the sound rules
-    /// stay modern.
+    /// (eight finals, not seven); and the tone dots: one (去聲) high, two (上聲) rising.
     Middle,
 }
 
@@ -55,7 +57,11 @@ impl Dialect {
     pub fn from_name(name: &str) -> Option<Dialect> {
         match name {
             "seoul" => Some(Dialect::Seoul),
-            "gyeongsang" => Some(Dialect::Gyeongsang),
+            "central" => Some(Dialect::Central),
+            "gyeongsang" | "southeast" => Some(Dialect::Gyeongsang),
+            "southwest" => Some(Dialect::Southwest),
+            "northwest" => Some(Dialect::Northwest),
+            "northeast" => Some(Dialect::Northeast),
             "jeju" => Some(Dialect::Jeju),
             "middle" => Some(Dialect::Middle),
             _ => None,
@@ -97,8 +103,13 @@ fn reading_vowel(letter: char, o: &Options) -> Option<(&'static str, &'static st
         (Middle, 'ㅚ') => ("", "o", true),
         (Middle, 'ㅟ') => ("", "u", true),
         (Middle, 'ㅢ') => ("", "ɨ", true),
-        (Jeju, 'ㆍ') => ("", "ɒ", false),
-        (Jeju, 'ᆢ') => ("j", "ɒ", false),
+        (Jeju, 'ㆍ') => ("", "ɔ", false),
+        (Jeju, 'ᆢ') => ("j", "ɔ", false),
+        (Central, 'ㅐ') => ("", "e", false),
+        (Central, 'ㅒ') => ("j", "e", false),
+        (Central, 'ㅙ') => ("w", "e", false),
+        (Southwest, 'ㅢ') => ("", "ɯ", false),
+        (Northeast, 'ㅢ') => ("", "i", false),
         (Gyeongsang, 'ㅓ' | 'ㅡ') => ("", "ə", false),
         (Gyeongsang, 'ㅕ') => ("j", "ə", false),
         (Gyeongsang, 'ㅝ') => ("w", "ə", false),
@@ -167,8 +178,8 @@ fn blocks_of(word: &str, arae_a: &'static str) -> Vec<Block> {
         let initial = match u {
             0x1100..=0x1112 => Some(Some(INITIALS[(u - 0x1100) as usize]).filter(|&o| o != 'ㅇ')),
             // ᅇ (double ㅇ, ᄒᆡᅇᅧ): its value is argued over; read as a silent initial
-        0x1147 => Some(None),
-        _ => old_initial(c).map(Some).or(cluster.map(|cs| cs.last().copied())),
+            0x1147 => Some(None),
+            _ => old_initial(c).map(Some).or(cluster.map(|cs| cs.last().copied())),
         };
         // (glide, vowel, letter); ㆎ is ㆍ with an offglide, read as such when a reading has one
         let medial = match u {
@@ -323,7 +334,8 @@ fn tense(c: char) -> char {
 }
 
 /// Apply the sound rules at the boundary between block `a` and the next block `b`.
-fn join(a: &mut Block, b: &mut Block, keep_s: bool) {
+fn join(a: &mut Block, b: &mut Block, dialect: Dialect) {
+    let keep_s = dialect == Dialect::Middle;
     // a coda before a silent ㅇ moves over (ㅎ drops, ㅇ stays: 좋아 → 조아, 빵야 → 빵야); after a
     // dropped ㅎ the consonant before it moves (싫어 → 시러, 많아 → 마나), and ㄷ ㅌ moving onto
     // 이 palatalise (굳이 → 구지, 같이 → 가치)
@@ -333,7 +345,7 @@ fn join(a: &mut Block, b: &mut Block, keep_s: bool) {
         }
         if a.coda.last().is_some_and(|&c| c != 'ㅇ') {
             let c = a.coda.pop().unwrap();
-            let before_i = b.vowel == "i" && b.glide.is_empty();
+            let before_i = b.vowel == "i" && b.glide.is_empty() && dialect != Dialect::Northwest;
             b.onset = Some(match c {
                 'ㄷ' if before_i => 'ㅈ',
                 'ㅌ' if before_i => 'ㅊ',
@@ -497,6 +509,7 @@ const SPELLED_AS: &[(&str, &str)] = &[
 fn syllables_of(word: &str, opts: &Options) -> Vec<Syllable> {
     let gyeongsang = opts.dialect == Dialect::Gyeongsang;
     let middle = opts.dialect == Dialect::Middle;
+    let northeast = opts.dialect == Dialect::Northeast;
     let mut blocks = blocks_of(word, opts.arae_a);
     // the reading's vowels (Gyeongsang's ㅆ as ㅅ is read with the onset, below), and the ㅅ-series
     // clusters as tense consonants when that is the reading asked for
@@ -515,7 +528,7 @@ fn syllables_of(word: &str, opts: &Options) -> Vec<Syllable> {
     }
     for i in 1..blocks.len() {
         let (l, r) = blocks.split_at_mut(i);
-        join(l.last_mut().unwrap(), &mut r[0], middle);
+        join(l.last_mut().unwrap(), &mut r[0], opts.dialect);
     }
     if let Some(last) = blocks.last_mut() {
         last.coda = simplify(&last.coda).map(|c| neutral_in(c, middle)).into_iter().collect();
@@ -532,6 +545,16 @@ fn syllables_of(word: &str, opts: &Options) -> Vec<Syllable> {
             .chain(b.onset.map(|o| {
                 let o = if gyeongsang && o == 'ㅆ' { 'ㅅ' } else { o };
                 let (ipa, aspirated, vot) = onset_ipa(o, voiced_before && !clustered, front, prev_coda == Some('ㄹ'));
+                // Northern Hamgyong and the northwestern profile use alveolar affricates.
+                let ipa = if northeast || opts.dialect == Dialect::Northwest {
+                    match ipa {
+                        "tɕ" => "ts",
+                        "dʑ" => "dz",
+                        other => other,
+                    }
+                } else {
+                    ipa
+                };
                 // after a cluster's consonants a stop doesn't aspirate (as after English /s/)
                 let (aspirated, vot) = if clustered { (aspirated.map(|_| false), None) } else { (aspirated, vot) };
                 // closure lengths (VCV, 2026 Korean phonetics notes): tense 123 ms, aspirated 84, lax 48;
@@ -557,11 +580,15 @@ fn syllables_of(word: &str, opts: &Options) -> Vec<Syllable> {
         out.push(Syllable {
             text: b.text.clone(),
             onset,
-            // a marked high syllable in a pitch-accent dialect, or a 15th-century one with tone dots:
-            // the planner's accent raises it; two dots (上聲) also lengthen it
             nucleus: Segment {
-                stress: ((gyeongsang && b.high) || (middle && b.tone > 0)).then_some(1),
-                dur: (middle && b.tone == 2).then_some(0.25),
+                tone: match (middle, northeast, b.tone, b.high) {
+                    (true, _, 0, _) => Some(Tone::Low),
+                    (true, _, 1, _) | (_, true, 1, _) | (_, true, 0, true) => Some(Tone::High),
+                    (true, _, 2, _) | (_, true, 2, _) => Some(Tone::Rising),
+                    _ => None,
+                },
+                stress: (gyeongsang && b.high).then_some(1),
+                dur: ((middle || northeast) && b.tone == 2).then_some(0.25),
                 ..Segment::new(b.vowel)
             },
             coda: offglide[i].then(|| Segment::new("j")).into_iter().chain(b.coda.iter().map(|&c| Segment::new(coda_ipa(c)))).collect(),
