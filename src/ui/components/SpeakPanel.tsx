@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { skippedLines } from "../skipped.ts";
 import { useStore } from "../store.ts";
 import { speakText, speakPhrases, stopSpeaking, onPlan, currentPlan, spokenWordNow, speakingNow } from "../speech.ts";
 import { mouthWords } from "../mouthWords.ts";
 import { tokenizeIpa } from "../../wasm/engine.ts";
-import { DIALECT_OPTIONS, HANGUL, useDialect } from "../dialect.ts";
+import { HANGUL, useDialect } from "../dialect.ts";
+import { KoreanInput } from "./KoreanInput.tsx";
 import { useT } from "../i18n.ts";
 import { Menu, Slider } from "./Controls.tsx";
 import { Chip, Screen } from "./Screen.tsx";
@@ -17,6 +18,14 @@ import { V } from "../colors.ts";
 import { engine } from "../../audio/AudioEngine.ts";
 
 const EXAMPLES = ["Hello. Can you hear me?", "She sells sea shells by the sea shore.", "Every sound here is air moving through a throat.", "The quick brown fox jumps over the lazy dog."];
+
+/**
+ * The preface of Hunminjeongeum (1446) in its 15th-century Korean, as the 언해본 has it (월인석보 권1):
+ * the 해례본's own preface is in Classical Chinese, which the voice can't read. The Chinese
+ * characters stay beside their 동국정운 readings (the voice reads the readings); the tone dots are
+ * left out. Read in the Middle Korean setting.
+ */
+const PREFACE = "나랏 말ᄊᆞ미 中듀ᇰ國귁에 달아 文문字ᄍᆞᆼ와로 서르 ᄉᆞᄆᆞᆺ디 아니ᄒᆞᆯᄊᆡ, 이런 젼ᄎᆞ로 어린 百ᄇᆡᆨ姓셔ᇰ이 니르고져 호ᇙ 배 이셔도 ᄆᆞᄎᆞᆷ내 제 ᄠᅳ들 시러 펴디 몯ᄒᆞᇙ 노미 하니라. 내 이ᄅᆞᆯ 爲윙ᄒᆞ야 어엿비 너겨 새로 스믈여듧 字ᄍᆞᆼᄅᆞᆯ ᄆᆡᇰᄀᆞ노니, 사ᄅᆞᆷ마다 ᄒᆡᅇᅧ 수ᄫᅵ 니겨 날로 ᄡᅮ메 便뼌安ᅙᅡᆫ킈 ᄒᆞ고져 ᄒᆞᇙ ᄯᆞᄅᆞ미니라.";
 
 // IPA pulmonic consonant chart (rows = manner, columns = place); empty cells are null
 const PLACES = ["Bilabial", "Labiodental", "Dental", "Alveolar", "Postalveolar", "Retroflex", "Palatal", "Velar", "Uvular", "Pharyngeal", "Glottal"];
@@ -139,7 +148,8 @@ export function SpeakRight() {
   const [text, setText] = useState(EXAMPLES[0]);
   const [ipa, setIpa] = useState(false);
   const [rate, setRate] = useState(1);
-  const { dialect, setDialect } = useDialect();
+  const dialect = useDialect((s) => s.dialect);
+  const sayBox = useRef<HTMLTextAreaElement>(null);
   const t = useT();
   const [busy, setBusy] = useState(false);
   const [trans, setTrans] = useState(currentPlan()?.transcription ?? "");
@@ -176,24 +186,17 @@ export function SpeakRight() {
         <Menu
           label="Examples"
           value=""
-          options={[{ value: "", label: "Examples", disabled: true }, ...EXAMPLES.map((ex) => ({ value: ex, label: ex }))]}
+          options={[{ value: "", label: "Examples", disabled: true }, ...EXAMPLES.map((ex) => ({ value: ex, label: ex })), { value: PREFACE, label: t("Hunminjeongeum preface (15th c.)") }]}
           onChange={(ex) => {
             setText(ex);
             setIpa(false);
+            // the preface is 15th-century spelling: read it as such
+            if (ex === PREFACE) useDialect.getState().setDialect("middle");
           }}
         />
         <div className="act-slider">
           <Slider label="Rate" value={rate} min={0.5} max={1.8} onChange={setRate} format={(v) => `${v.toFixed(2)}×`} />
         </div>
-        {/* how Hangul reads: only when the text has some */}
-        {!ipa && HANGUL.test(text) && (
-          <Menu
-            label="Dialect"
-            value={dialect}
-            options={DIALECT_OPTIONS.map((o) => ({ value: o.value, label: t(o.label) }))}
-            onChange={setDialect}
-          />
-        )}
         <Chip on={ipa} onClick={() => setIpa(!ipa)}>
           Text is IPA
         </Chip>
@@ -202,6 +205,7 @@ export function SpeakRight() {
         <div className="say">
           <div className="say-row">
             <textarea
+              ref={sayBox}
               value={text}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={(e) => {
@@ -214,6 +218,7 @@ export function SpeakRight() {
               placeholder={ipa ? "Type IPA, for example ˈhɛloʊ" : "Type something for the voice to say"}
             />
           </div>
+          {!ipa && <KoreanInput target={sayBox} value={text} onChange={setText} />}
           <div className="say-row">
             <div className="say-read">
               {/* the accent mark barely shows over Hangul in most fonts: say how to type it */}

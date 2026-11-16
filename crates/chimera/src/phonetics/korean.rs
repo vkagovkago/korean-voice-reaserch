@@ -139,11 +139,13 @@ fn old_initial(c: char) -> Option<char> {
     })
 }
 
-fn old_final(c: char) -> Option<char> {
+fn old_final(c: char) -> Option<Vec<char>> {
     Some(match c {
-        '\u{11EB}' => 'ㅿ',
-        '\u{11F0}' => 'ㅇ', // ㆁ as a final is the modern final ㅇ
-        '\u{11F9}' => 'ㆆ',
+        '\u{11EB}' => vec!['ㅿ'],
+        '\u{11F0}' => vec!['ㅇ'], // ㆁ as a final is the modern final ㅇ
+        '\u{11F9}' => vec!['ㆆ'],
+        // ㅭ (ᇙ, ㄹ then ㆆ): said ㄹ; its ㆆ tenses the consonant after it in the word (호ᇙ 배)
+        '\u{11D9}' => vec!['ㄹ', 'ㆆ'],
         _ => return None,
     })
 }
@@ -164,7 +166,9 @@ fn blocks_of(word: &str, arae_a: &'static str) -> Vec<Block> {
         let cluster = CLUSTERS.iter().find(|(j, _)| *j == c).map(|(_, cs)| *cs);
         let initial = match u {
             0x1100..=0x1112 => Some(Some(INITIALS[(u - 0x1100) as usize]).filter(|&o| o != 'ㅇ')),
-            _ => old_initial(c).map(Some).or(cluster.map(|cs| cs.last().copied())),
+            // ᅇ (double ㅇ, ᄒᆡᅇᅧ): its value is argued over; read as a silent initial
+        0x1147 => Some(None),
+        _ => old_initial(c).map(Some).or(cluster.map(|cs| cs.last().copied())),
         };
         // (glide, vowel, letter); ㆎ is ㆍ with an offglide, read as such when a reading has one
         let medial = match u {
@@ -176,7 +180,7 @@ fn blocks_of(word: &str, arae_a: &'static str) -> Vec<Block> {
         };
         let fin: Option<Vec<char>> = match u {
             0x11A8..=0x11C2 => Some(FINALS[(u - 0x11A8 + 1) as usize].chars().collect()),
-            _ => old_final(c).map(|f| vec![f]),
+            _ => old_final(c),
         };
         if let Some(o) = initial {
             if stage != 1 {
@@ -188,7 +192,7 @@ fn blocks_of(word: &str, arae_a: &'static str) -> Vec<Block> {
             b.text.push(c);
             stage = 1;
         } else if let Some(((glide, vowel), letter)) = medial {
-            if stage == 0 || stage == 3 {
+            if stage != 1 {
                 out.push(Block { text: String::new(), onset: None, glide: "", vowel: "", coda: vec![], high: false, medial: ' ', pre: vec![], tone: 0 });
             }
             let b = out.last_mut().unwrap();
@@ -337,6 +341,11 @@ fn join(a: &mut Block, b: &mut Block, keep_s: bool) {
             });
         }
         return;
+    }
+    // ㅭ's ㆆ (15th-century spelling) tenses the consonant after it and is not said itself
+    if a.coda.len() == 2 && a.coda[1] == 'ㆆ' {
+        a.coda.pop();
+        b.onset = Some(tense(b.onset.unwrap()));
     }
     // ㅎ meets a stop or affricate: one aspirated consonant (좋다 → 조타, 축하 → 추카)
     if a.coda.last() == Some(&'ㅎ') {

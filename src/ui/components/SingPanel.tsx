@@ -8,8 +8,7 @@ import { V } from "../colors.ts";
 import { Keys, MidiButton } from "./Keys.tsx";
 import { ActionBar, PrimaryButton } from "./ActionBar.tsx";
 import { Menu } from "./Controls.tsx";
-import { DIALECT_OPTIONS, HANGUL, useDialect } from "../dialect.ts";
-import { useT } from "../i18n.ts";
+import { KoreanInput } from "./KoreanInput.tsx";
 import { PianoRoll } from "./PianoRoll.tsx";
 import { SpectrumView } from "./SpectrumView.tsx";
 import { Chip, Screen } from "./Screen.tsx";
@@ -50,9 +49,11 @@ function Lyrics() {
   const setCursor = useSing((s) => s.setCursor);
   const at = demo ? sungAt : -1;
   const done = demo ? sungAt : cursor;
+  const box = useRef<HTMLTextAreaElement>(null);
   return (
     <div className="lyrics">
       <textarea
+        ref={box}
         value={lyrics}
         onChange={(e) => setLyrics(e.target.value)}
         onKeyDown={(e) => e.stopPropagation()}
@@ -61,6 +62,7 @@ function Lyrics() {
         placeholder="Type the words to sing"
         title="Sing sings these words to the tune, a line to each of its phrases. Each key sings the next syllable; hold a key while you press the next one to sing legato. A lone “-” between words holds a vowel over several notes; hyphens split a word your way (“ti-ger”)."
       />
+      <KoreanInput target={box} value={lyrics} onChange={setLyrics} />
       <div className="syllables" role="group" aria-label="Syllables. Each note sings the marked one; choose another to start there.">
         {syllables.map((s, i) => (
           <span key={i} className={`syl-wrap${s.wordEnd ? " word-end" : ""}`}>
@@ -140,9 +142,6 @@ function SingActions() {
   const playing = useSing((s) => s.playing);
   const tune = useSing((s) => s.tune);
   const setTune = useSing((s) => s.setTune);
-  const lyrics = useSing((s) => s.lyrics);
-  const { dialect, setDialect } = useDialect();
-  const t = useT();
   const [pending, setPending] = useState(false);
   const [recording, setRecording] = useState(false);
   const [clip, setClip] = useState<{ file: File; url: string } | null>(null);
@@ -232,8 +231,6 @@ function SingActions() {
           if ((playing || pending) && !recording) sing(id);
         }}
       />
-      {/* how Hangul in the lyrics reads: only when they have some */}
-      {HANGUL.test(lyrics) && <Menu label="Dialect" value={dialect} options={DIALECT_OPTIONS.map((o) => ({ value: o.value, label: t(o.label) }))} onChange={setDialect} />}
       {canRecord() && (
         <Chip toggle={false} onClick={() => (recording ? stop() : sing(tune, true))} title="Sing it again and record the face into a video">
           {recording ? "Cancel" : "Record video"}

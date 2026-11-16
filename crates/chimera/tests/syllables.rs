@@ -341,3 +341,20 @@ fn jeju_reads_arae_a_as_a_low_back_rounded_vowel() {
     // the rest is modern
     assert_eq!(read_as("말", jeju), "mal");
 }
+
+#[test]
+fn the_preface_letters_read_vowel_after_vowel_double_ieung_and_final_rieul_hieut() {
+    use chimera::phonetics::korean::{Dialect, Options, word_syllables_with};
+    let mk = Options { dialect: Dialect::Middle, ..Default::default() };
+    // ᄒᆡᅇᅧ: a vowel after a vowel (ᅇ read silent between them) starts its own syllable
+    assert_eq!(read_as("ᄒᆡᅇᅧ", mk), "hʌj.jə");
+    // ᇙ (ㄹ then ㆆ): said ㄹ (호ᇙ, 몯ᄒᆞᇙ), and in the word its ㆆ tenses the next consonant
+    assert_eq!(read_as("호ᇙ", mk), "hol");
+    let s = word_syllables_with("호ᇙ가", &mk);
+    assert_eq!((s[0].coda.len(), s[1].onset[0].fortis), (1, Some(true)));
+    // the 언해본 preface reads with no syllable lost (every block has a vowel)
+    let text = "나랏 말ᄊᆞ미 中듀ᇰ國귁에 달아 ᄆᆞᄎᆞᆷ내 제 ᄠᅳ들 시러 펴디 몯ᄒᆞᇙ 노미 하니라";
+    let syls = lyrics_to_syllables(text, &word);
+    let blocks = text.chars().filter(|c| ('\u{AC00}'..='\u{D7A3}').contains(c) || ('\u{1161}'..='\u{11A7}').contains(c)).count();
+    assert_eq!(syls.len(), blocks);
+}

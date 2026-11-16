@@ -73,7 +73,9 @@ Between voiced sounds a lax stop is voiced (아기 [agi]). ㄲ ㄸ ㅃ ㅉ ㅆ a
 Old Hangul is written in conjoining jamo (ᄒᆞᆫ is ᄒ ᆞ ᆫ), and the Korean front end reads it: a run of
 initials, medials and finals is one block, and so one note. Besides the modern letters it reads ㆍ,
 ㅿ [z], ㆁ [ŋ, as an initial too], ㆆ [ʔ], ㅸ [β], ㆎ (ㆍ then [j]), ᆢ ([j] then ㆍ), the initial
-clusters ᄞ ᄠ ᄡ ᄢ ᄣ ᄧ ᄩ ᄭ ᄯ ᄲ ᄶ, and the tone dots 〮 〯. Old texts in the Hanyang private-use
+clusters ᄞ ᄠ ᄡ ᄢ ᄣ ᄧ ᄩ ᄭ ᄯ ᄲ ᄶ, the final ᇙ (said ㄹ; its ㆆ tenses the next consonant in
+the word), ᅇ (read silent: its value is argued over), and the tone dots 〮 〯. A vowel right
+after a vowel starts a syllable of its own. Old texts in the Hanyang private-use
 encoding must be converted to jamo first.
 
 The clusters: the ㅂ series reads as clusters (ᄠᅳᆮ [ptɯt], ᄢᅢ [pskɛ]); the ㅅ series is argued over,
@@ -88,9 +90,17 @@ a hypothesis sounds like in this voice; it is not evidence for it.
 
 ### Readings: dialects and the 15th century
 
-`korean::Options.dialect` picks how Hangul reads: the Dialect menu on the Speak and Sing screens
-(shown when the text has Hangul), `chimera render text <out> "…" male <reading>`, or the speech
-path's `EnglishG2P.korean`. English's allophones (flapping, dark /l/) apply to English words only,
+`korean::Options.dialect` picks how Hangul reads: the Korean reading menu under the text on the
+Speak and Sing screens (standard, the regional dialects, Middle Korean), `chimera render text
+<out> "…" male <reading>`, or the speech path's `EnglishG2P.korean`.
+
+Beside it, the Old Hangul keyboard (`src/ui/components/KoreanInput.tsx`) types what an ordinary
+keyboard can't: initials, vowels and finals as conjoining jamo (the archaic letters and the
+clusters included), and the tone dots and the accent mark. It moves from initial to vowel to final
+as you type, and types at the caret without raising a phone's own keyboard. Speak's examples
+include the preface of Hunminjeongeum in its 15th-century Korean (the 언해본's; the 해례본's own
+preface is Classical Chinese, which the voice can't read), with its Chinese characters beside
+their 동국정운 readings and without the tone dots; picking it switches to Middle Korean. English's allophones (flapping, dark /l/) apply to English words only,
 so Korean words in speech keep a clear final [l] (살) and an unflapped [d] (바다).
 
 - **seoul** (the default): modern standard speech; accent marks and tone dots are kept in the text

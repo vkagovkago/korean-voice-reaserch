@@ -25,10 +25,10 @@ export const useDialect = create<{ dialect: KoreanDialect; setDialect: (d: Korea
 /** Hangul, modern or Old (conjoining jamo): the text has Korean to read in a dialect. */
 export const HANGUL = /[가-힣ᄀ-ᇿ]/;
 
-/** The dialect menu's choices, as labels to translate. */
+/** The reading menu's choices (standard, the regional dialects, Middle Korean), as labels to translate. */
 export const DIALECT_OPTIONS: { value: KoreanDialect; label: string }[] = [
-  { value: "seoul", label: "Seoul" },
-  { value: "gyeongsang", label: "Gyeongsang" },
-  { value: "jeju", label: "Jeju" },
-  { value: "middle", label: "15th century" },
+  { value: "seoul", label: "Standard (Seoul)" },
+  { value: "gyeongsang", label: "Gyeongsang dialect" },
+  { value: "jeju", label: "Jeju dialect" },
+  { value: "middle", label: "Middle Korean (15th c.)" },
 ];
