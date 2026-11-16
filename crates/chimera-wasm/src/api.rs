@@ -12,6 +12,7 @@ use chimera::phonetics::beatbox::{self, BeatStep};
 use chimera::phonetics::planner::{self, PhraseInput, PlanOptions};
 use chimera::phonetics::sing::{self, MelismaOptions, NoteOnOptions, SongOptions, SungNote};
 use chimera::phonetics::english::EnglishG2P;
+use chimera::phonetics::korean::{Dialect, Options};
 use chimera::phonetics::{Segment, Syllable, ipa, songs, syllables, vowel_data};
 use chimera::voice::human_airway::HumanAirway;
 use serde_json::{Value, json};
@@ -124,9 +125,15 @@ fn dispatch(st: &mut State, req: &Value) -> Res {
             st.g2p.load_dict(&arg::<String>(req, "text")?);
             Ok(json!(true))
         }
-        "g2pPhrases" => to_json(&st.g2p.to_phrases(&arg::<String>(req, "text")?)),
+        "g2pPhrases" => {
+            st.g2p.korean.dialect = dialect(req)?;
+            to_json(&st.g2p.to_phrases(&arg::<String>(req, "text")?))
+        }
         "g2pWord" => to_json(&st.g2p.word(&arg::<String>(req, "word")?, arg::<Option<bool>>(req, "reduce")?.unwrap_or(true))),
-        "lyricsToSyllables" => to_json(&syllables::lyrics_to_syllables(&arg::<String>(req, "text")?, &st.g2p)),
+        "lyricsToSyllables" => {
+            let korean = Options { dialect: dialect(req)?, ..Default::default() };
+            to_json(&syllables::lyrics_to_syllables_in(&arg::<String>(req, "text")?, &st.g2p, korean))
+        }
         // ---------------------------------------------------------------- creatures
         "creaturePreview" => {
             let id: String = arg(req, "id")?;
@@ -225,4 +232,12 @@ pub extern "C" fn chimera_result_ptr() -> *const u8 {
 #[unsafe(no_mangle)]
 pub extern "C" fn chimera_result_len() -> usize {
     STATE.with(|s| s.borrow().result.len())
+}
+
+/// How Hangul in a request's text reads: its "dialect" ("seoul" when absent).
+fn dialect(req: &serde_json::Value) -> Result<Dialect, String> {
+    match arg::<Option<String>>(req, "dialect")?.as_deref() {
+        None => Ok(Dialect::Seoul),
+        Some(name) => Dialect::from_name(name).ok_or_else(|| format!("unknown dialect {name:?}")),
+    }
 }

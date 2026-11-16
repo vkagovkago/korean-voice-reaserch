@@ -245,8 +245,11 @@ fn a_breathy_release_parts_the_folds_across_the_release_and_into_the_vowel() {
     // nothing else about the plan changes
     let rest = |p: &Plan| serde_json::to_string(&p.gestures.iter().filter(|g| g.label.as_ref().is_none_or(|l| l.as_str() != "breathy")).collect::<Vec<_>>()).unwrap();
     assert_eq!(rest(&modal), rest(&soft));
-    // a flag on a sound the mark does not apply to does nothing
-    for c in ["p", "s", "m", "ɦ", "l"] {
+    // a flag on a sound the mark does not apply to does nothing (an unaspirated /p/ included; an
+    // aspirated one starts its vowel breathy, below)
+    let p = plan(&[Segment { breathy: Some(true), aspirated: Some(false), ..Segment::new("p") }, Segment::new("a")]);
+    assert!(labelled(&p.gestures, "breathy").is_empty());
+    for c in ["s", "m", "ɦ", "l"] {
         let p = plan(&[Segment { breathy: Some(true), ..Segment::new(c) }, Segment::new("a")]);
         assert!(labelled(&p.gestures, "breathy").is_empty(), "{c}");
     }
@@ -294,4 +297,55 @@ fn a_sung_consonant_keeps_its_palatalization() {
     let coda = |s| Syllable { coda: onset(s), ..syl(vec![], Segment::new("a")) };
     let p = plan_song(&[SungNote { midi: 57.0, beats: 1.0, syl: coda(Some(true)) }], &SongOptions { body: "male".into(), bpm: 90.0, t0: 0.5, vibrato: 0.0 });
     assert_eq!(labelled(&p.gestures, "palatalized").len(), 1);
+}
+
+fn fortis(s: &Segment) -> Option<bool> {
+    s.fortis
+}
+
+#[test]
+fn a_double_vertical_line_below_makes_a_voiceless_obstruent_fortis_and_unaspirated() {
+    assert_eq!(flags("p\u{348}a", fortis), pairs(&[("p", true), ("a", false)]));
+    assert_eq!(flags("k\u{348} t\u{348} tɕ\u{348} s\u{348}", fortis), pairs(&[("k", true), ("t", true), ("tɕ", true), ("s", true)]));
+    assert_eq!(tokenize_ipa("k\u{348}a")[0].aspirated, Some(false));
+    // not on a voiced or sonorant sound
+    for ipa in ["b\u{348}a", "m\u{348}a", "a\u{348}"] {
+        assert!(tokenize_ipa(ipa).iter().all(|s| s.fortis.is_none()), "{ipa}");
+    }
+}
+
+#[test]
+fn a_fortis_stop_stiffens_the_folds_from_its_closure_into_the_vowel() {
+    let seg = |f| vec![Segment { fortis: f, aspirated: Some(false), ..Segment::new("p") }, Segment { stress: Some(1), ..Segment::new("a") }];
+    let (plain, tense) = (plan(&seg(None)), plan(&seg(Some(true))));
+    assert!(labelled(&plain.gestures, "fortis").is_empty());
+    let g = labelled(&tense.gestures, "fortis");
+    assert_eq!(g.len(), 1);
+    let stop = &tense.segments[0];
+    // from the middle of the closure to 80 ms past the release
+    assert_eq!(g[0].targets.get(ControlKey::TENSION), Some(0.9));
+    assert!((g[0].t0 - (stop.t0 + stop.t1) / 2.0).abs() < 1e-9 && (g[0].t1 - (stop.t1 + 0.08)).abs() < 1e-9);
+    // nothing else about the plan changes
+    let rest = |p: &Plan| serde_json::to_string(&p.gestures.iter().filter(|g| g.label.as_ref().is_none_or(|l| l.as_str() != "fortis")).collect::<Vec<_>>()).unwrap();
+    assert_eq!(rest(&plain), rest(&tense));
+    for c in ["b", "m", "l"] {
+        let p = plan(&[Segment { fortis: Some(true), ..Segment::new(c) }, Segment::new("a")]);
+        assert!(labelled(&p.gestures, "fortis").is_empty(), "{c}");
+    }
+}
+
+#[test]
+fn an_aspirated_stop_marked_breathy_starts_its_vowel_breathy_and_slack() {
+    // Korean's lax stops: aspirated briefly, then a breathy, slack voice into the vowel
+    let seg = |b| vec![Segment { breathy: b, aspirated: Some(true), vot: Some(0.045), ..Segment::new("p") }, Segment { stress: Some(1), ..Segment::new("a") }];
+    let (plain, lax) = (plan(&seg(None)), plan(&seg(Some(true))));
+    assert!(labelled(&plain.gestures, "breathy").is_empty() && labelled(&plain.gestures, "slack").is_empty());
+    let asp = labelled(&lax.gestures, "aspiration")[0].end();
+    let (b, s) = (labelled(&lax.gestures, "breathy"), labelled(&lax.gestures, "slack"));
+    assert_eq!((b.len(), s.len()), (1, 1));
+    assert_eq!((b[0].targets.get(ControlKey::ABDUCTION), s[0].targets.get(ControlKey::TENSION)), (Some(0.1), Some(0.3)));
+    // from just before the aspiration ends to 80 ms after
+    assert!((b[0].t0 - (asp - 0.02)).abs() < 1e-9 && (b[0].t1 - (asp + 0.08)).abs() < 1e-9);
+    let rest = |p: &Plan| serde_json::to_string(&p.gestures.iter().filter(|g| g.label.as_ref().is_none_or(|l| !matches!(l.as_str(), "breathy" | "slack"))).collect::<Vec<_>>()).unwrap();
+    assert_eq!(rest(&plain), rest(&lax));
 }

@@ -95,6 +95,8 @@ pub struct Phrase {
 #[derive(Clone, Debug, Default)]
 pub struct EnglishG2P {
     dict: Option<HashMap<String, String>>,
+    /// how Hangul in the text is read (ㆍ's hypothesis, the dialect)
+    pub korean: super::korean::Options,
 }
 
 /// JS `\s` (and what `String.prototype.trim` removes).
@@ -143,14 +145,23 @@ impl EnglishG2P {
             // the words said: a token with no sound ("--", a lone apostrophe) is left out, so
             // the n-th word ends at the n-th word end
             let mut said: Vec<String> = Vec::new();
+            // which segments are English's, the only ones English's allophones apply to
+            let mut english: Vec<bool> = Vec::new();
             for w in words.iter() {
-                let mut ws = self.word(w, true);
+                // Hangul is Korean's: its sounds and aspiration come from the Korean front end
+                let korean = w.chars().next().is_some_and(super::korean::is_hangul);
+                let mut ws = if korean {
+                    super::korean::word_syllables_with(w, &self.korean).into_iter().flat_map(|y| y.onset.into_iter().chain([y.nucleus]).chain(y.coda)).collect()
+                } else {
+                    self.word(w, true)
+                };
                 let Some(last) = ws.last_mut() else { continue };
                 last.word_end = Some(true);
+                english.extend(std::iter::repeat_n(!korean, ws.len()));
                 segs.append(&mut ws);
                 said.push(w.clone());
             }
-            apply_allophones(&mut segs);
+            apply_allophones(&mut segs, &english);
             let q = delim.contains('?');
             let pause = if delim.contains(['.', '!', '?']) {
                 0.35
@@ -168,8 +179,19 @@ impl EnglishG2P {
             if !part.is_empty() && part.chars().all(is_phrase_punct) {
                 flush(part, &mut words);
             } else {
-                let lower = part.to_lowercase();
-                words.extend(lower.split(|c: char| !(c.is_ascii_lowercase() || c == '\'' || c == '-')).filter(|w| !w.is_empty()).map(str::to_string));
+                // an acute stays in a word only after Hangul (a Korean accent mark, 가́지); after
+                // anything else it splits, as other marks do ("cafe" + U+0301 reads "cafe")
+                let mut prev = ' ';
+                let lower: String = part
+                    .to_lowercase()
+                    .chars()
+                    .map(|c| {
+                        let k = if c == '\u{301}' && !super::korean::is_hangul(prev) { ' ' } else { c };
+                        prev = c;
+                        k
+                    })
+                    .collect();
+                words.extend(lower.split(|c: char| !(c.is_ascii_lowercase() || c == '\'' || c == '-' || super::korean::in_korean_word(c))).filter(|w| !w.is_empty()).map(str::to_string));
             }
         }
         flush("", &mut words);
@@ -266,8 +288,13 @@ pub fn arpabet_to_segments(phones: &str) -> Vec<Segment> {
 }
 
 /// American English allophones: flapping and velarised coda /l/ (in place).
-fn apply_allophones(segs: &mut [Segment]) {
+/// English's flapping and dark /l/, on the segments `english` marks (Korean words in the same
+/// phrase keep their own sounds: 살 ends in a clear [l], 바다's [d] is not tapped).
+fn apply_allophones(segs: &mut [Segment], english: &[bool]) {
     for i in 1..segs.len().saturating_sub(1) {
+        if !english[i] {
+            continue;
+        }
         let (prev, next) = (&segs[i - 1], &segs[i + 1]);
         let pv = is_vowel(&prev.ipa) || prev.ipa == "ɹ";
         let nv = is_vowel(&next.ipa);
@@ -280,7 +307,7 @@ fn apply_allophones(segs: &mut [Segment]) {
         }
     }
     for i in 0..segs.len() {
-        if segs[i].ipa != "l" {
+        if segs[i].ipa != "l" || !english[i] {
             continue;
         }
         let next_vowel = segs.get(i + 1).is_some_and(|n| is_vowel(&n.ipa));

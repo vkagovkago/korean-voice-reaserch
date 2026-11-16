@@ -13,6 +13,9 @@ const ALIASES: [(&str, &str); 9] = [("t͡ʃ", "tʃ"), ("d͡ʒ", "dʒ"), ("t͡s",
 /// combining tilde and combining diaeresis below: the vowel before them is nasalized, breathy
 const NASALIZED: char = '\u{303}';
 const BREATHY: char = '\u{324}';
+/// combining double vertical line below (ExtIPA strong articulation, Korean's tense k͈ s͈): a fortis
+/// voiceless stop, affricate or fricative
+const FORTIS: char = '\u{348}';
 /// combining inverted breve below (non-syllabic, `aɪ̯`) and combining vertical line below (syllabic,
 /// `bʌtn̩`): in most dictionary IPA, and the voice says the sound they mark, so they are never reported
 const NONSYLLABIC: char = '\u{32F}';
@@ -130,7 +133,8 @@ fn has_sound(sym: &str) -> bool {
 /// dictionary IPA and the voice says the sound they mark, so they are never reported, on any letter
 /// or where no letter precedes them.
 ///
-/// The marks `tokenize_ipa` reads (`ʰ ˭`, a tilde or diaeresis below on a vowel, `ʲ`, `ʱ` where
+/// The marks `tokenize_ipa` reads (`ʰ ˭`, a tilde or diaeresis below on a vowel, `ʲ`, `ʱ`, a double
+/// vertical line below on a voiceless obstruent (`k͈`) where
 /// they apply), stress, length, tie bars, spaces and `. , |` are not reported, and neither are
 /// whitespace of other kinds and the transcription delimiters `/ [ ]` (`/ɕiɛ/`, `[ɕiɛ]`). `tokenize_ipa` itself is unchanged and still drops these silently,
 /// so a caller that takes IPA from a person should show this.
@@ -249,13 +253,14 @@ fn tokenize(input: &str, gaps: &mut Gaps) -> Vec<Segment> {
             tok = ch.to_string();
         }
         i += tok.chars().count();
-        // combining diacritics: the tilde and the diaeresis below on a vowel are read, the rest we
-        // do not model
+        // combining diacritics: the tilde and the diaeresis below on a vowel, and the double vertical
+        // line below on a voiceless obstruent, are read; the rest we do not model
         let marks_from = i;
-        let (mut nasalized, mut breathy) = (false, false);
+        let (mut nasalized, mut breathy, mut fortis) = (false, false, false);
         while i < s.len() && ('\u{300}'..='\u{36F}').contains(&s[i]) {
             nasalized |= s[i] == NASALIZED;
             breathy |= s[i] == BREATHY;
+            fortis |= s[i] == FORTIS;
             i += 1;
         }
         if !known.contains(tok.as_str()) {
@@ -268,11 +273,13 @@ fn tokenize(input: &str, gaps: &mut Gaps) -> Vec<Segment> {
         let is_v = is_vowel_token(&tok);
         // what is left unread: any mark but a tilde or diaeresis below on a vowel, and the
         // syllabic and non-syllabic marks on any letter (never reported)
-        let unread: String = s[marks_from..i].iter().copied().filter(|c| !(is_v && (*c == NASALIZED || *c == BREATHY)) && *c != NONSYLLABIC && *c != SYLLABIC).collect();
+        // a tense (fortis) voiceless obstruent (Korean k͈): unaspirated, the folds stiff into the vowel
+        let fortis = fortis && consonant(&tok).is_some_and(|c| c.voicing == Voicing::Voiceless && matches!(c.manner, Manner::Stop | Manner::Affricate | Manner::Fricative));
+        let unread: String = s[marks_from..i].iter().copied().filter(|c| !(is_v && (*c == NASALIZED || *c == BREATHY)) && !(fortis && *c == FORTIS) && *c != NONSYLLABIC && *c != SYLLABIC).collect();
         if !unread.is_empty() {
             add(&mut gaps.marked, format!("{tok}{unread}"));
         }
-        out.push(Segment { ipa: tok, stress: Some(if is_v { stress } else { 0 }), nasalized: (is_v && nasalized).then_some(true), breathy: (is_v && breathy).then_some(true), ..Default::default() });
+        out.push(Segment { ipa: tok, stress: Some(if is_v { stress } else { 0 }), nasalized: (is_v && nasalized).then_some(true), breathy: (is_v && breathy).then_some(true), fortis: fortis.then_some(true), aspirated: fortis.then_some(false), ..Default::default() });
         if is_v {
             stress = 0;
         }

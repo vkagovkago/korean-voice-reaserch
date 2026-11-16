@@ -7,6 +7,7 @@ mod calibrate;
 mod compare;
 mod diagnose;
 mod js;
+mod korean;
 mod render;
 mod wav;
 
@@ -17,7 +18,8 @@ const USAGE: &str = "\
 usage: chimera <command> [args] [--float]
 
   render speech  <out> [\"ipa / ipa\"] [male|female|child]
-  render text    <out> [\"English text.\"] [male|female|child]
+  render text    <out> [\"English text.\"] [male|female|child] [seoul|gyeongsang]
+                 (Hangul reads in the dialect; in gyeongsang an acute marks a high syllable: 가́지)
   render song    [outdir] [male|female|child]
   render notes   <in.json> <out> [male|female|child] [--artic tracks.json] [--tele voice.tele]
                  (melody file; midi <= 0 is a rest; --artic also writes the articulators at 100 Hz)
@@ -26,6 +28,8 @@ usage: chimera <command> [args] [--float]
   render vowels  [male|female|child] [out]
   syllables      \"lyrics\"    (what the language front ends read: one JSON syllable per sung note)
   diagnose       [outdir]
+  diagnose korean [outdir]  (가 카 까 …: VOT, onset F0 and tilt against Seoul speech; WAVs to listen to)
+  diagnose middle-korean [outdir]  (Old Hangul words under each hypothesis for ㆍ: F1/F2 and WAVs)
   compare csd    [csd-dir] [outdir] [--songs a|b|all|en001a,…] [--body female] [--jobs n]
                  [--against earlier/score.json]  (score.json: distance to the singer, and the verdict)
   compare tsp    [tsp-dir] [outdir] [--speakers FA,MA,…] [--jobs n] [--dump]
@@ -112,6 +116,8 @@ fn run(args: Vec<String>) -> Result<(), String> {
         }
         ["compare", "csd", ..] => compare::csd(&ctx, &args[2..]),
         ["compare", "tsp", ..] => compare::tsp::run(&ctx, &args[2..]),
+        ["diagnose", "korean", ..] => korean::run(&ctx, &args[2..]),
+        ["diagnose", "middle-korean", ..] => korean::run_middle(&ctx, &args[2..]),
         ["diagnose", ..] => diagnose::run(&ctx, &args[1..]),
         ["syllables", text] => render::g2p()
             .map(|g| chimera::phonetics::syllables::lyrics_to_syllables(text, &g))

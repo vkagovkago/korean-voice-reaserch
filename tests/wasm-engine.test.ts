@@ -86,9 +86,9 @@ describe("wasm engine", () => {
       expect(`${s.name}: ${diff} samples differ`).toBe(`${s.name}: 0 samples differ`);
     }
   }, 120000);
-  test("gesture records are 272 bytes", () => {
-    expect(GESTURE_RECORD).toBe(272);
-    expect(CONTROL_KEYS.length).toBe(22);
+  test("gesture records are 280 bytes", () => {
+    expect(GESTURE_RECORD).toBe(280);
+    expect(CONTROL_KEYS.length).toBe(23);
   });
 
   // #100: the worklet's path for a long beat (writeSteps → engine_set_beat) played only the first

@@ -260,3 +260,45 @@ fn a_breathy_release_is_noisy_into_the_vowel_and_then_modal() {
         assert!(soft.out.iter().all(|x| x.is_finite()) && soft.out.iter().any(|x| x.abs() > 0.01));
     }
 }
+
+impl Rendered {
+    /// H1-A3 (dB): the first harmonic over the strongest peak between 2 and 4 kHz, in the LEN
+    /// samples centred on t; the spectral tilt, low for a pressed voice, high for a breathy one
+    fn h1_a3<const LEN: usize>(&self, t: f64, f0: f64) -> f64 {
+        let mid = (t * FS) as usize;
+        let x: Vec<f64> = self.out[mid - LEN / 2..mid + LEN / 2].iter().map(|v| *v as f64).collect();
+        // the pitch: the lag of the best autocorrelation within 40 % of the planned one
+        let (lo, hi) = ((FS / (f0 * 1.4)) as usize, (FS / (f0 * 0.6)) as usize);
+        let r = |l: usize| x[..LEN - l].iter().zip(&x[l..]).map(|(a, b)| a * b).sum::<f64>();
+        let f0 = FS / (lo..=hi).max_by(|a, b| r(*a).total_cmp(&r(*b))).unwrap() as f64;
+        let db = power_spectrum_db(&x, &Fft::new(LEN), &hann(LEN));
+        let df = FS / LEN as f64;
+        let max = |a: f64, b: f64| db[(a / df) as usize..=(b / df) as usize].iter().copied().fold(f64::MIN, f64::max);
+        max(0.85 * f0, 1.15 * f0) - max(2000.0, 4000.0)
+    }
+}
+
+#[test]
+fn a_fortis_stop_presses_the_start_of_its_vowel() {
+    // Korean's tense stops leave the vowel after them pressed: a flatter spectrum (lower H1-A3)
+    // than after a lax stop (Cho, Jun & Ladefoged 2002). /p͈a/ against the same unaspirated /pa/
+    // without the stiff folds (43 ms windows, level pitch), the mean of the windows centred 40, 50
+    // and 60 ms after the release, and 300 ms after, where they are the same vowel again:
+    //   male   H1-A3 23.7 -> 6.7 dB;  female 10.9 -> 3.8 dB
+    for (body, name, f0) in VOICES {
+        let say = |f: bool| {
+            let segs = [Segment { fortis: f.then_some(true), aspirated: Some(false), ..Segment::new("p") }, Segment { dur: Some(0.45), stress: Some(1), ..Segment::new("a") }];
+            render_flat(&segs, body, name, f0)
+        };
+        let (plain, tense) = (say(false), say(true));
+        let release = plain.plan.segments[0].t1;
+        let mean = |r: &Rendered| [0.04, 0.05, 0.06].iter().map(|k| r.h1_a3::<2048>(release + k, f0)).sum::<f64>() / 3.0;
+        let (a, b) = (mean(&plain), mean(&tense));
+        println!("/p͈a/ ({name}): H1-A3 {a:.1} dB plain, {b:.1} dB fortis, 40-60 ms after the release");
+        assert!(a - b > 5.0, "{name}: {a:.1} dB plain, {b:.1} dB fortis");
+        let (a, b) = (plain.h1_a3::<2048>(release + 0.3, f0), tense.h1_a3::<2048>(release + 0.3, f0));
+        println!("   300 ms after: {a:.1} dB plain, {b:.1} dB fortis");
+        assert!((a - b).abs() < 0.5, "{name} +300 ms: {a:.1} dB plain, {b:.1} dB fortis");
+        assert!(tense.out.iter().all(|x| x.is_finite()));
+    }
+}

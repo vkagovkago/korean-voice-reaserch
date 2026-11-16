@@ -10,7 +10,11 @@
 import { create } from "zustand";
 import { engine } from "../audio/AudioEngine.ts";
 import { g2p } from "./speech.ts";
-import { lyricsToSyllables, type Syllable } from "../wasm/engine.ts";
+import { lyricsToSyllables as readLyrics, type Syllable } from "../wasm/engine.ts";
+import { useDialect } from "./dialect.ts";
+
+/** The lyrics' syllables, Hangul read in the chosen dialect. */
+const lyricsToSyllables = (text: string): Syllable[] => readLyrics(text, useDialect.getState().dialect);
 import { planSong, planNoteOn, planNoteOff, planMelisma } from "../wasm/engine.ts";
 import { EXHALE_LABEL } from "../wasm/engine.ts";
 import type { Gesture } from "../wasm/types.ts";
@@ -116,6 +120,13 @@ export const useSing = create<SingState>((set, get) => ({
   setTempo: (x) => set({ tempo: x }),
   setKey: (semitones) => set({ key: semitones }),
 }));
+
+// a new dialect re-reads the lyrics (the cursor stays)
+useDialect.subscribe(() => {
+  const s = useSing.getState();
+  const syllables = lyricsToSyllables(s.lyrics);
+  useSing.setState({ syllables, cursor: Math.min(s.cursor, Math.max(0, syllables.length - 1)) });
+});
 
 useSing.subscribe((s, p) => {
   if (s.lyrics === p.lyrics && s.tune === p.tune && s.tempo === p.tempo && s.key === p.key) return;

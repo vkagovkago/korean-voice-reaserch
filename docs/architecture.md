@@ -144,7 +144,9 @@ branching (nasal tract, sinuses, piriform fossae, two bronchi, vocal sacs, OEC).
   stays until the voice returns (a velar is only fronted; the consonant's own closure is never
   touched). `ʱ` after a voiced stop or affricate and a combining diaeresis below on a vowel
   (`breathy`): glottal abduction of 0.1, as for /ɦ/, over the release and 80 ms after it, or over
-  the vowel. A mark on a sound it doesn't apply to is ignored, and with no flag set the plan is
+  the vowel. A combining double vertical line below on a voiceless stop, affricate or fricative
+  (`fortis`, Korean `k͈`): unaspirated, and the score's `tension` channel stiffens the folds (0.9)
+  from the middle of the closure to 80 ms past the release. A mark on a sound it doesn't apply to is ignored, and with no flag set the plan is
   the one English always had. Other IPA diacritics are still dropped.
 
 ## 5. FX / output

@@ -207,7 +207,10 @@ pub fn text(ctx: &Ctx, a: &[String]) -> Result<(), String> {
     let name = arg(a, 0, "out/text");
     let text = arg(a, 1, "Hello world.");
     let body_name = arg(a, 2, "male");
-    let g = g2p()?;
+    let mut g = g2p()?;
+    // Hangul in the text is read in this dialect (seoul, gyeongsang)
+    let d = arg(a, 3, "seoul");
+    g.korean.dialect = chimera::phonetics::korean::Dialect::from_name(d).ok_or(format!("unknown dialect {d:?}; have seoul, gyeongsang, jeju, middle"))?;
     let t = Instant::now();
     let s = say(&g, text, body_name)?;
     let ms = ms_since(t);

@@ -4,6 +4,8 @@ import { useStore } from "../store.ts";
 import { speakText, speakPhrases, stopSpeaking, onPlan, currentPlan, spokenWordNow, speakingNow } from "../speech.ts";
 import { mouthWords } from "../mouthWords.ts";
 import { tokenizeIpa } from "../../wasm/engine.ts";
+import { DIALECT_OPTIONS, HANGUL, useDialect } from "../dialect.ts";
+import { useT } from "../i18n.ts";
 import { Menu, Slider } from "./Controls.tsx";
 import { Chip, Screen } from "./Screen.tsx";
 import { ActionBar, PrimaryButton } from "./ActionBar.tsx";
@@ -137,6 +139,8 @@ export function SpeakRight() {
   const [text, setText] = useState(EXAMPLES[0]);
   const [ipa, setIpa] = useState(false);
   const [rate, setRate] = useState(1);
+  const { dialect, setDialect } = useDialect();
+  const t = useT();
   const [busy, setBusy] = useState(false);
   const [trans, setTrans] = useState(currentPlan()?.transcription ?? "");
   const [vowel, setVowel] = useState("ɑ");
@@ -151,7 +155,7 @@ export function SpeakRight() {
       await start();
       // the audio didn't start (the error shows on the bar): speaking would only light Stop
       if (!useStore.getState().started) return;
-      await speakText(text, { ipa, body, rate, f0 });
+      await speakText(text, { ipa, body, rate, f0, dialect });
     } finally {
       setBusy(false);
     }
@@ -181,6 +185,15 @@ export function SpeakRight() {
         <div className="act-slider">
           <Slider label="Rate" value={rate} min={0.5} max={1.8} onChange={setRate} format={(v) => `${v.toFixed(2)}×`} />
         </div>
+        {/* how Hangul reads: only when the text has some */}
+        {!ipa && HANGUL.test(text) && (
+          <Menu
+            label="Dialect"
+            value={dialect}
+            options={DIALECT_OPTIONS.map((o) => ({ value: o.value, label: t(o.label) }))}
+            onChange={setDialect}
+          />
+        )}
         <Chip on={ipa} onClick={() => setIpa(!ipa)}>
           Text is IPA
         </Chip>
@@ -203,6 +216,8 @@ export function SpeakRight() {
           </div>
           <div className="say-row">
             <div className="say-read">
+              {/* the accent mark barely shows over Hangul in most fonts: say how to type it */}
+              {!ipa && dialect === "gyeongsang" && HANGUL.test(text) && <p className="say-hint">{t("Mark a high syllable with an acute after it: 가́지")}</p>}
               <p className="transcription" aria-live="polite">
                 {trans ? `/${trans}/` : ""}
               </p>

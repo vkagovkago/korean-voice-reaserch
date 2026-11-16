@@ -110,9 +110,9 @@ export class EnglishG2P {
     this.isLoaded = true;
   }
 
-  /** Text → phrases of segments. */
-  toPhrases(text: string): Phrase[] {
-    return call("g2pPhrases", { text });
+  /** Text → phrases of segments; Hangul in it reads in `dialect` (Seoul by default). */
+  toPhrases(text: string, dialect: KoreanDialect = "seoul"): Phrase[] {
+    return call("g2pPhrases", { text, dialect });
   }
 
   /** One word → segments with lexical stress. `reduce`: weak forms of function words (speech). */
@@ -121,9 +121,15 @@ export class EnglishG2P {
   }
 }
 
-/** Lyrics → sung syllables, through the page's dictionary (see EnglishG2P). */
-export function lyricsToSyllables(text: string): Syllable[] {
-  return call("lyricsToSyllables", { text });
+/**
+ * How Hangul reads: Seoul; the Gyeongsang pilot (ㅓ = ㅡ, ㅆ = ㅅ, an acute marks a high syllable: 가́지);
+ * Jeju (ㆍ [ɒ]); or the 15th century (ㅓ [ə] ㅡ [ɨ], ㅐ [aj] …, final ㅅ [s], tone dots).
+ */
+export type KoreanDialect = "seoul" | "gyeongsang" | "jeju" | "middle";
+
+/** Lyrics → sung syllables, through the page's dictionary (see EnglishG2P); Hangul reads in `dialect`. */
+export function lyricsToSyllables(text: string, dialect: KoreanDialect = "seoul"): Syllable[] {
+  return call("lyricsToSyllables", { text, dialect });
 }
 
 // ------------------------------------------------------------------ planning

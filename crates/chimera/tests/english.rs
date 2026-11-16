@@ -67,3 +67,11 @@ fn words_that_are_also_object_property_names_do_not_break_the_front_end() {
     assert!(!EnglishG2P::new().is_loaded());
     assert!(EnglishG2P::new().to_phrases("constructor")[0].segments.len() > 3); // no dictionary
 }
+
+#[test]
+fn hangul_is_spoken_by_the_korean_front_end() {
+    // Speak used to drop Hangul: 안녕 하세요 gave no phrase at all
+    let p = &g2p().to_phrases("안녕 하세요")[0];
+    assert_eq!(p.words, ["안녕", "하세요"]);
+    assert!(p.segments.iter().any(|s| s.ipa == "a") && p.segments.last().unwrap().word_end == Some(true));
+}

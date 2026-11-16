@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { useT } from "../i18n.ts";
 
 /**
  * One screen on the wall: a black panel with a thin frame and a single-stroke title.
@@ -7,7 +8,9 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
  * header, and `label` names the screen for assistive tech.
  */
 export function Screen(props: { title?: string; sub?: string; lead?: ReactNode; focus?: boolean; className?: string; tools?: ReactNode; children: ReactNode; label?: string }) {
-  const { title, sub, lead, focus, className, tools, children, label } = props;
+  const { title: title0, sub: sub0, lead, focus, className, tools, children, label: label0 } = props;
+  const t = useT();
+  const title = title0 && t(title0), sub = sub0 && t(sub0), label = label0 && t(label0);
   return (
     <section className={`screen${focus ? " focus" : ""}${className ? " " + className : ""}`} aria-label={label ?? title}>
       {(title || lead || sub || tools) && (
@@ -25,7 +28,9 @@ export function Screen(props: { title?: string; sub?: string; lead?: ReactNode; 
 
 /** A framed caps button; `on` lights it and sets aria-pressed (a toggle) unless it's a plain action. */
 export function Chip(props: ButtonHTMLAttributes<HTMLButtonElement> & { on?: boolean; toggle?: boolean; tone?: "slot0" | "slot1" | "slot2" | "slot3" | "amber" }) {
-  const { on, toggle = true, tone, className, children, ...rest } = props;
+  const { on, toggle = true, tone, className, children: c0, ...rest } = props;
+  const t = useT();
+  const children = typeof c0 === "string" ? t(c0) : c0;
   return (
     <button type="button" {...rest} className={`chip${on ? " on" : ""}${tone ? " " + tone : ""}${className ? " " + className : ""}`} aria-pressed={toggle ? !!on : undefined}>
       {children}

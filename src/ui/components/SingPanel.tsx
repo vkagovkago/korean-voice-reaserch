@@ -8,6 +8,8 @@ import { V } from "../colors.ts";
 import { Keys, MidiButton } from "./Keys.tsx";
 import { ActionBar, PrimaryButton } from "./ActionBar.tsx";
 import { Menu } from "./Controls.tsx";
+import { DIALECT_OPTIONS, HANGUL, useDialect } from "../dialect.ts";
+import { useT } from "../i18n.ts";
 import { PianoRoll } from "./PianoRoll.tsx";
 import { SpectrumView } from "./SpectrumView.tsx";
 import { Chip, Screen } from "./Screen.tsx";
@@ -138,6 +140,9 @@ function SingActions() {
   const playing = useSing((s) => s.playing);
   const tune = useSing((s) => s.tune);
   const setTune = useSing((s) => s.setTune);
+  const lyrics = useSing((s) => s.lyrics);
+  const { dialect, setDialect } = useDialect();
+  const t = useT();
   const [pending, setPending] = useState(false);
   const [recording, setRecording] = useState(false);
   const [clip, setClip] = useState<{ file: File; url: string } | null>(null);
@@ -227,6 +232,8 @@ function SingActions() {
           if ((playing || pending) && !recording) sing(id);
         }}
       />
+      {/* how Hangul in the lyrics reads: only when they have some */}
+      {HANGUL.test(lyrics) && <Menu label="Dialect" value={dialect} options={DIALECT_OPTIONS.map((o) => ({ value: o.value, label: t(o.label) }))} onChange={setDialect} />}
       {canRecord() && (
         <Chip toggle={false} onClick={() => (recording ? stop() : sing(tune, true))} title="Sing it again and record the face into a video">
           {recording ? "Cancel" : "Record video"}

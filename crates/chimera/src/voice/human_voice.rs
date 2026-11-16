@@ -190,6 +190,8 @@ pub struct HumanVoice {
     base_abduction: f64,
     base_closure: f64,
     score_f0: Option<f64>,
+    /// a score's tension gesture set the pulse shape last control step
+    score_tension: bool,
     lim_env: f64,
     lim_hold: i64,
     lim_hold_n: i64,
@@ -254,6 +256,7 @@ impl HumanVoice {
             base_abduction: 0.0,
             base_closure: 0.0,
             score_f0: None,
+            score_tension: false,
             lim_env: 0.0,
             lim_hold: 0,
             lim_hold_n: crate::math::js_round(0.025 * fs_out) as i64,
@@ -326,17 +329,7 @@ impl HumanVoice {
         // the arytenoids through the closed phase (Södersten & Lindestad 1990). It leaks a little
         // air and damps the tract, which lifts H1 and the band below 500 Hz.
         g.chink = (0.008 + 0.03 * s.breathiness) * k2;
-        g.open_quotient = 0.78 - 0.36 * s.tension;
-        // The folds close along their length and depth over a return phase, not all at once, so
-        // a sung or spoken voice closes softly (0.22 at tension 0.55): an abrupt closure put
-        // 3-8 dB too much energy above 2 kHz. Pressing harder than that brings the abrupt closure
-        // back, up to 0.95 at full tension, so a pressed voice still has its edge. Brightness moves
-        // the closure from there, and shortens or lengthens the closing phase: 0 closes as softly as
-        // the model allows, 1 about as abruptly as a pressed voice.
-        let bright = s.brightness - DEFAULT_SOURCE.brightness;
-        let by_tension = 0.4 * s.tension + 1.375 * js_max(0.0, s.tension - 0.6);
-        g.closure_sharpness = clamp(by_tension + 0.8 * bright, 0.0, 1.0);
-        g.skew = 0.56 + 0.16 * s.tension + 0.2 * bright;
+        set_tension(g, s.tension, s.brightness);
         g.fry = s.fry;
         // Jitter of a healthy, trained voice at the default roughness (0.1): about 0.45 %, well
         // under the clinical threshold (MDVP: 1.04 %).
@@ -457,6 +450,14 @@ impl HumanVoice {
             }
             let vb = b[ControlKey::VIBRATO.index()];
             gp.vibrato_depth = if vb.weight > 0.0 { (self.source.vibrato_depth * 0.05 + vb.value * vb.weight) / (0.05 + vb.weight) } else { self.source.vibrato_depth };
+            // a score's tension stands in for the performer's while it is active, and lets go as
+            // its weight ramps out
+            let tn = b[ControlKey::TENSION.index()];
+            if tn.weight > 0.0 || self.score_tension {
+                let t = if tn.weight > 0.0 { self.source.tension + (tn.value - self.source.tension) * js_min(1.0, tn.weight) } else { self.source.tension };
+                set_tension(gp, t, self.source.brightness);
+                self.score_tension = tn.weight > 0.0;
+            }
             let pf = b[ControlKey::F0.index()];
             if pf.weight > 0.0 {
                 f0_target = (self.source.f0 * 0.02 + pf.value * pf.weight) / (0.02 + pf.weight);
@@ -471,6 +472,10 @@ impl HumanVoice {
             self.artic.step(dt, None, 1.0);
             self.glottis.params.abduction = self.base_abduction;
             self.glottis.params.closure = self.base_closure;
+            if self.score_tension {
+                set_tension(&mut self.glottis.params, self.source.tension, self.source.brightness);
+                self.score_tension = false;
+            }
             self.score_f0 = None;
         }
         self.clock += dt;
@@ -645,4 +650,21 @@ impl HumanVoice {
         }
         let _ = n_t;
     }
+}
+
+/// The glottal pulse's shape at a fold tension: its open quotient, how abruptly the folds close,
+/// and its skew. Set from the performer's tension, or each control step from a score's (a Korean
+/// tense stop stiffens the voice into its vowel).
+fn set_tension(g: &mut crate::sources::glottis::GlottisParams, tension: f64, brightness: f64) {
+    g.open_quotient = 0.78 - 0.36 * tension;
+    // The folds close along their length and depth over a return phase, not all at once, so
+    // a sung or spoken voice closes softly (0.22 at tension 0.55): an abrupt closure put
+    // 3-8 dB too much energy above 2 kHz. Pressing harder than that brings the abrupt closure
+    // back, up to 0.95 at full tension, so a pressed voice still has its edge. Brightness moves
+    // the closure from there, and shortens or lengthens the closing phase: 0 closes as softly as
+    // the model allows, 1 about as abruptly as a pressed voice.
+    let bright = brightness - DEFAULT_SOURCE.brightness;
+    let by_tension = 0.4 * tension + 1.375 * js_max(0.0, tension - 0.6);
+    g.closure_sharpness = clamp(by_tension + 0.8 * bright, 0.0, 1.0);
+    g.skew = 0.56 + 0.16 * tension + 0.2 * bright;
 }

@@ -49,19 +49,79 @@ how long they aspirate (`vot`, voice onset time):
 | | 불 fire | 풀 grass | 뿔 horn |
 |---|---|---|---|
 | kind | lax | aspirated | tense |
-| written | [pʰ], `vot` 45 ms | [pʰ], `vot` 90 ms | [p˭], unaspirated |
-| measured in the render (male; female within 3 ms) | 53 ms | 96 ms | 22 ms |
+| written | [pʰ], `vot` 45 ms | [pʰ], `vot` 57 ms | [p˭], unaspirated |
+| measured in the render | 57 ms | 70 ms | 24 ms (27 for ㄸ, male) |
+| Seoul speech | 50-65 ms | 57-75 ms | 16-24 ms |
 
-Between voiced sounds a lax stop is voiced (아기 [agi]). Not modelled yet: the lower pitch that
-follows a lax stop (Seoul speakers rely on it as much as on aspiration; it needs pitch contours,
-#32 step 4) and the stiff voice of tense stops. A Korean speaker's ear is still wanted.
+`chimera diagnose korean [outdir]` measures this (all four places, ㅅ/ㅆ, male and female; with an
+outdir it writes each syllable's WAV to listen to): VOT, onset F0 over the lax stop, and the
+spectral tilt (H1-A3) 30-50 ms into the voice. 59 of its 60 checks are met; the miss: ㄸ's VOT is
+3 ms long in the male voice. ㅅ/ㅆ leave the onset F0 where it is (shown, not checked).
+
+A word-initial lax stop starts its vowel breathy and slack (`breathy` on an aspirated stop: abduction
+0.1 and fold tension 0.3 from the end of the aspiration to 80 ms after), so its vowel is the
+breathiest of the three (H1-A3 22-25 dB female against 19 after an aspirated stop).
+
+Closure lasts longest for tense stops (123 ms), then aspirated (84), then lax (48), the 2026 notes' VCV means; ㅎ between vowels is brief (it is mostly dropped in real speech).
+
+In speech the vowel after a tense or aspirated stop starts about 5 semitones above one after a lax stop (sung notes keep their melody). A short list of compounds and Sino-Korean words (솜이불 → [솜니불], 갈등 → [갈뜽]) is read from a respelling in `korean.rs`, since their ㄴ insertion and tensing need the word's parts.
+
+Between voiced sounds a lax stop is voiced (아기 [agi]). ㄲ ㄸ ㅃ ㅉ ㅆ are `fortis` (IPA `k͈`): the folds stiffen (tension 0.9) from the middle of the closure to 80 ms past the release, so the vowel starts pressed, its spectrum flatter (H1-A3 down 7 dB female, 17 dB male, 40-60 ms after the release) and the same as a lax stop's from about 150 ms on. A Korean speaker's ear is still wanted.
+
+### Old Hangul
+
+Old Hangul is written in conjoining jamo (ᄒᆞᆫ is ᄒ ᆞ ᆫ), and the Korean front end reads it: a run of
+initials, medials and finals is one block, and so one note. Besides the modern letters it reads ㆍ,
+ㅿ [z], ㆁ [ŋ, as an initial too], ㆆ [ʔ], ㅸ [β], ㆎ (ㆍ then [j]), ᆢ ([j] then ㆍ), the initial
+clusters ᄞ ᄠ ᄡ ᄢ ᄣ ᄧ ᄩ ᄭ ᄯ ᄲ ᄶ, and the tone dots 〮 〯. Old texts in the Hanyang private-use
+encoding must be converted to jamo first.
+
+The clusters: the ㅂ series reads as clusters (ᄠᅳᆮ [ptɯt], ᄢᅢ [pskɛ]); the ㅅ series is argued over,
+so it reads as clusters ([sk]) by default or, with `Options::siot_tense`, as tense consonants
+(ᄭᅮᆷ [k͈um]). A stop after a cluster's consonants doesn't aspirate.
+
+ㆍ's value is argued over too, so it has hypotheses (`korean::ARAE_A`): [ʌ] (이기문 1972; the
+default), [ɐ] and [ɔ] (sources not recorded yet). `chimera diagnose middle-korean [outdir]` says
+ᄒᆞᆫ ᄆᆞᅀᆞᆷ ᄉᆞᄅᆞᆷ ᄃᆞᆯ under each in the 15th-century reading (below), with the vowel's F1/F2 beside modern
+ㅏ ㅓ ㅗ and WAVs to compare (male: [ʌ] 584/1223 Hz, [ɐ] 605/1382, [ɔ] 562/977). A render shows what
+a hypothesis sounds like in this voice; it is not evidence for it.
+
+### Readings: dialects and the 15th century
+
+`korean::Options.dialect` picks how Hangul reads: the Dialect menu on the Speak and Sing screens
+(shown when the text has Hangul), `chimera render text <out> "…" male <reading>`, or the speech
+path's `EnglishG2P.korean`. English's allophones (flapping, dark /l/) apply to English words only,
+so Korean words in speech keep a clear final [l] (살) and an unflapped [d] (바다).
+
+- **seoul** (the default): modern standard speech; accent marks and tone dots are kept in the text
+  and not said.
+- **gyeongsang** (a pilot): ㅓ and ㅡ are one vowel, [ə] (ㅕ ㅝ too); ㅆ is said as ㅅ (쌀 = 살); and
+  pitch accent. Which syllables are high is each word's, by region and speaker, and there is no
+  lexicon here, so the input marks them with an acute after the block (가́지 high-low, 가지́
+  low-high; the Speak screen says how). The planner's accent raises a marked syllable (about 3
+  semitones in the male voice), and lengthens it as it does a stressed one. Not modelled: rising
+  (long) tones, the accent's real size and timing, regional and generational differences.
+- **jeju** (a pilot): ㆍ, still written there, is [ɒ], and ᆢ [jɒ] (ᄆᆞᆯ [mɒl], ᄋᆢ덥 [jɒ.dʌp]).
+- **middle**, the 15th century as most reconstructions have it (이기문's vowel system): ㅓ [ə], ㅡ
+  [ɨ], ㆍ by its hypothesis; ㅐ ㅔ ㅚ ㅟ ㅢ ㆎ are diphthongs ending in [j] (개 [kaj], 긔 [kɨj]); a final
+  ㅅ stays [s] (옷 [os]: eight finals, not seven); and the tone dots: none low (平聲), one high
+  (去聲), two high and long (上聲, whose rise the planner can't draw inside a syllable). The other
+  consonants and the sound rules stay modern.
+
+Sung lyrics read in the same setting; in a song the melody and the notes set pitch and length, so
+accents and tone dots do nothing there.
+
+Not done, and why: a morphological analyser (ㄴ insertion and 사잇소리 need a word's parts; it would
+bring a dictionary and a dependency the engine doesn't have, so a short respelling list stands in);
+a Gyeongsang accent lexicon (which syllable is high is survey data this repository doesn't have);
+and Hanyang private-use conversion (a table of thousands of code points to get exactly right).
 
 ## The one format
 
 Every front end writes the same thing, one sung syllable per sounding note:
 
 ```json
-{ "text": "풀", "onset": [{"ipa": "p", "aspirated": true, "vot": 0.09}], "nucleus": {"ipa": "u"},
+{ "text": "풀", "onset": [{"ipa": "p", "aspirated": true, "vot": 0.07}], "nucleus": {"ipa": "u"},
   "coda": [{"ipa": "l"}], "wordEnd": true, "phraseEnd": false }
 ```
 
@@ -70,7 +130,7 @@ Every front end writes the same thing, one sung syllable per sounding note:
   IPA text) and `"vot"`, its aspiration time in seconds relative to the 50 ms default (unsaid:
   English's 50 ms). Each millisecond more or less than 50 moves the voice's return by a
   millisecond; the measured voice onset also depends on the place and the voice (the Korean table
-  above: 45 asked gives 53–69 ms, 90 gives 96–110).
+  above: 45 asked gives 53–69 ms, 70 gives about 80).
 - `nucleus`: one vowel, or a diphthong the planner knows.
 - A melisma note is `"melisma": true` with the same nucleus; its coda moves to the run's last note.
 - `text` is what the lyrics panel and the piano roll show.

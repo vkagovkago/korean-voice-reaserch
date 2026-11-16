@@ -175,6 +175,7 @@ struct Seg<'a> {
     nasalized: Option<bool>,
     palatalized: Option<bool>,
     breathy: Option<bool>,
+    fortis: Option<bool>,
 }
 
 /// glottal abduction of breathy voice: /ɦ/'s, a gap the folds still vibrate across
@@ -182,6 +183,13 @@ const BREATHY_ABDUCTION: f64 = 0.1;
 /// how long past its release a breathy-voiced stop's folds stay apart (s), at most to the end of
 /// the next segment
 const BREATHY_RELEASE: f64 = 0.08;
+/// a fortis obstruent's fold tension (0 lax … 1 pressed), from late in its closure, and how long past
+/// its release the folds stay stiff (s), at most to the end of the next segment: the vowel after a
+/// Korean tense stop starts pressed (low H1-H2, a sharp closure) for its first 50-100 ms
+const FORTIS_TENSION: f64 = 0.9;
+const FORTIS_RELEASE: f64 = 0.08;
+/// the fold tension of a slack voice onset (Korean's lax stops), against the performer's 0.5
+const SLACK_TENSION: f64 = 0.3;
 
 /// velum port area (cm²) of a nasalized vowel, and the ramps of its lowering and raising (s)
 const NASAL_VOWEL_PORT: f64 = 0.3;
@@ -211,10 +219,10 @@ pub fn plan_utterance(input: &[Segment], o: &PlanOptions) -> Plan {
             let base = durs[si];
             for (i, p) in parts.iter().enumerate() {
                 let dur = if parts.len() > 1 { base * (if i == 0 { 0.55 } else { 0.45 }) } else { base };
-                segs.push(Seg { ipa: p, dur: Some(dur), stress: s.stress, f0: s.f0, def: None, vowel: None, glide_from: i > 0, aspirated: None, vot: None, nasalized: s.nasalized, palatalized: None, breathy: s.breathy });
+                segs.push(Seg { ipa: p, dur: Some(dur), stress: s.stress, f0: s.f0, def: None, vowel: None, glide_from: i > 0, aspirated: None, vot: None, nasalized: s.nasalized, palatalized: None, breathy: s.breathy, fortis: None });
             }
         } else {
-            segs.push(Seg { ipa: &s.ipa, dur: Some(durs[si]), stress: s.stress, f0: s.f0, def: None, vowel: None, glide_from: false, aspirated: s.aspirated, vot: s.vot, nasalized: s.nasalized, palatalized: s.palatalized, breathy: s.breathy });
+            segs.push(Seg { ipa: &s.ipa, dur: Some(durs[si]), stress: s.stress, f0: s.f0, def: None, vowel: None, glide_from: false, aspirated: s.aspirated, vot: s.vot, nasalized: s.nasalized, palatalized: s.palatalized, breathy: s.breathy, fortis: s.fortis });
         }
     }
     for s in segs.iter_mut() {
@@ -345,7 +353,9 @@ pub fn plan_utterance(input: &[Segment], o: &PlanOptions) -> Plan {
                 let past = match (aspirated, s.vot) {
                     (true, None) => DEFAULT_VOT / rate * 0.4, // as before, to the bit
                     (true, Some(v)) => js_max(0.0, 0.4 * DEFAULT_VOT + v - DEFAULT_VOT) / rate,
-                    (false, _) => 0.012 * 0.4,
+                    (false, None) => 0.012 * 0.4,
+                    // an unaspirated stop's front end may shorten the gap the same way (Korean's tense stops)
+                    (false, Some(v)) => js_max(0.0, 0.4 * 0.012 + v - 0.012) / rate,
                 };
                 let g = Gesture::new(t0 + 0.25 * dur, t1 + past, 0.035, if aspirated { 0.045 } else { 0.02 }, 6.0, one(ControlKey::ABDUCTION, if aspirated { 0.36 } else { 0.22 })).label("aspiration");
                 voiced_again = g.end();
@@ -361,6 +371,21 @@ pub fn plan_utterance(input: &[Segment], o: &PlanOptions) -> Plan {
         if s.breathy == Some(true) && def.voicing == Voicing::Voiced && matches!(def.manner, Manner::Stop | Manner::Affricate) {
             let until = js_min(t1 + BREATHY_RELEASE, times.get(i + 1).map_or(f64::MAX, |n| n.t1));
             gestures.push(Gesture::new(t1 - 0.02, until, 0.03, 0.03, 5.0, one(ControlKey::ABDUCTION, BREATHY_ABDUCTION)).label("breathy"));
+        }
+        // fortis (Korean ㄲ ㄸ ㅃ ㅉ ㅆ): the folds stiffen late in the closure and stay stiff into the
+        // vowel, a pressed voice where a lax stop's vowel starts breathy
+        if s.fortis == Some(true) && def.voicing == Voicing::Voiceless && matches!(def.manner, Manner::Stop | Manner::Affricate | Manner::Fricative) {
+            let until = js_min(t1 + FORTIS_RELEASE, times.get(i + 1).map_or(f64::MAX, |n| n.t1));
+            gestures.push(Gesture::new(t0 + 0.5 * dur, until, 0.03, 0.03, 5.0, one(ControlKey::TENSION, FORTIS_TENSION)).label("fortis"));
+        }
+        // a breathy voice onset after an aspirated release (Korean's lax ㄱ ㄷ ㅂ ㅈ word-initially):
+        // the folds come back only part way as the aspiration ends and stay so into the vowel
+        if s.breathy == Some(true) && def.voicing == Voicing::Voiceless && matches!(def.manner, Manner::Stop | Manner::Affricate) && s.aspirated == Some(true) {
+            let until = js_min(voiced_again + BREATHY_RELEASE, times.get(i + 1).map_or(f64::MAX, |n| n.t1));
+            gestures.push(Gesture::new(voiced_again - 0.02, until, 0.03, 0.03, 5.0, one(ControlKey::ABDUCTION, BREATHY_ABDUCTION)).label("breathy"));
+            // and slack: lax stops are said with slack folds (the open glottis alone barely tilts
+            // the spectrum)
+            gestures.push(Gesture::new(voiced_again - 0.02, until, 0.03, 0.03, 5.0, one(ControlKey::TENSION, SLACK_TENSION)).label("slack"));
         }
         // palatalization: the tongue body goes toward /j/ under the consonant, stays there until the
         // voice returns, and lets go into the vowel, so the release carries the [j]-like transition
@@ -420,6 +445,20 @@ pub fn plan_utterance(input: &[Segment], o: &PlanOptions) -> Plan {
                 1.0
             };
             target = f0 * decl * acc;
+            // after Korean's tense and aspirated stops the vowel starts high, after a lax one low:
+            // ~4.9 semitones apart in Seoul speech (the 2026 notes, Beckman et al. 2014)
+            let stop = [i.wrapping_sub(1), i.wrapping_sub(2)].into_iter().filter_map(|k| segs.get(k)).find(|c| !matches!(c.ipa, "j" | "w" | "ɥ" | "ɰ"));
+            if let Some(st) = stop.filter(|c| c.vowel.is_none()) {
+                let semitones = match (st.aspirated, st.vot) {
+                    (Some(false), _) => 2.5,
+                    (Some(true), Some(v)) if v > 0.05 => 2.5, // aspirated: longer than a lax stop's 45 ms
+                    (Some(true), _) => -2.4,
+                    // ㅆ: fortis like the tense stops, and high after it as they are
+                    _ if st.fortis == Some(true) => 2.5,
+                    _ => 0.0,
+                };
+                target *= (semitones / 12.0_f64).exp2();
+            }
             let last = n == v_idx.len() - 1;
             if last && o.intonation == Some(Intonation::Question) {
                 target = f0 * 1.35;

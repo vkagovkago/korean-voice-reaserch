@@ -20,7 +20,8 @@ for tests and the `chimera` CLI.
 5. **The design language (the vector display) is settled**; the look within it can still evolve.
 6. **Nothing copyrighted in git**; MIT; a deterministic, real-time-safe engine.
 7. **Not now**: a DAW or sequencer, a light theme, MPE, multi-voice dialogue, translating the
-   interface (the voice speaks and sings many languages; the labels stay in English).
+   interface into more than Korean (`src/ui/i18n.ts`: English is the source, Korean covers the
+   shared labels; a label with no entry stays English).
 
 ## What it does
 

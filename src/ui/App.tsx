@@ -1,3 +1,4 @@
+import { setLang, useLang, useT } from "./i18n.ts";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { useStore } from "./store.ts";
 import { engine } from "../audio/AudioEngine.ts";
@@ -39,6 +40,8 @@ function TopBar() {
   const mode = useStore((s) => s.mode);
   const setMode = useStore((s) => s.setMode);
   const [load, setLoad] = useState(0);
+  const t = useT();
+  const lang = useLang();
   useEffect(() => {
     const id = setInterval(() => setLoad(engine.load), 500);
     return () => clearInterval(id);
@@ -47,7 +50,7 @@ function TopBar() {
     <header className="topbar">
       <div className="brand">
         <span className="wordmark">Chimera</span>
-        <span className="tagline">A voice grown from a simulated airway</span>
+        <span className="tagline">{t("A voice grown from a simulated airway")}</span>
       </div>
       <Segmented<Mode>
         label="Mode"
@@ -63,15 +66,18 @@ function TopBar() {
       />
       <div className="topbar-right">
         <label className="volume">
-          <span>Volume</span>
+          <span>{t("Volume")}</span>
           <input type="range" min={0} max={1} step={0.01} value={volume} onChange={(e) => setVolume(Number(e.target.value))} style={{ "--pos": `${volume * 100}%` } as React.CSSProperties} />
         </label>
         {started && (
-          <span className="load" title="Share of the audio thread's time budget used by the simulation">
-            Engine load {Math.round(load * 100)} %
+          <span className="load" title={t("Share of the audio thread's time budget used by the simulation")}>
+            {t("Engine load")} {Math.round(load * 100)} %
           </span>
         )}
-        <a className="repo-link" href="https://github.com/jamesondh/chimera-vocal-synth" target="_blank" rel="noreferrer" aria-label="Source code on GitHub" title="Source code on GitHub">
+        <Chip toggle={false} onClick={() => setLang(lang === "ko" ? "en" : "ko")} aria-label="Language / 언어">
+          {lang === "ko" ? "EN" : "한국어"}
+        </Chip>
+        <a className="repo-link" href="https://github.com/jamesondh/chimera-vocal-synth" target="_blank" rel="noreferrer" aria-label={t("Source code on GitHub")} title={t("Source code on GitHub")}>
           <svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true">
             <path
               fill="currentColor"

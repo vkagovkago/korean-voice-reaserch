@@ -285,5 +285,10 @@ pub fn read_lyrics(text: &str, front_ends: &[&dyn FrontEnd]) -> Vec<Syllable> {
 /// Lyrics text → syllables through the built-in front ends that need no data beyond the English
 /// dictionary: English (`g2p`), Korean and Russian.
 pub fn lyrics_to_syllables(text: &str, g2p: &impl WordSource) -> Vec<Syllable> {
-    read_lyrics(text, &[&English(g2p), &Korean, &Russian])
+    lyrics_to_syllables_in(text, g2p, super::korean::Options::default())
+}
+
+/// [`lyrics_to_syllables`] with Hangul read with `korean` (its dialect, ㆍ's hypothesis).
+pub fn lyrics_to_syllables_in(text: &str, g2p: &impl WordSource, korean: super::korean::Options) -> Vec<Syllable> {
+    read_lyrics(text, &[&English(g2p), &Korean(korean), &Russian])
 }

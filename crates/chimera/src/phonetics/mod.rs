@@ -55,6 +55,10 @@ pub struct Segment {
     /// vowel said with them part-open (IPA combining diaeresis below); None or false: modal
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub breathy: Option<bool>,
+    /// fortis: a voiceless stop, affricate or fricative said with the folds stiffened, which carries
+    /// a pressed, tense voice into the vowel after it (Korean ㄲ ㄸ ㅃ ㅉ ㅆ, IPA k͈); None or false: plain
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fortis: Option<bool>,
 }
 
 impl Segment {
