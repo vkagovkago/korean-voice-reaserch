@@ -29,3 +29,11 @@ async function boot(): Promise<void> {
 }
 
 void boot();
+
+// installable on a phone, and opens offline once loaded (public/sw.js); not in dev, where it would
+// keep serving old modules
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch(() => {
+    // not here (file://, a private window): the app works the same without it
+  });
+}
