@@ -32,7 +32,7 @@ pub struct Segment {
     /// explicit pitch (Hz) for this segment (singing)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub f0: Option<f64>,
-    /// lexical tone on a spoken vowel
+    /// lexical or phrasal tone on a spoken vowel
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tone: Option<Tone>,
     /// word boundary after this segment
@@ -76,6 +76,9 @@ pub enum Tone {
     Low,
     High,
     Rising,
+    Falling,
+    Accent,
+    AccentHigh,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]

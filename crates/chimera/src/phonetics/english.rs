@@ -2,6 +2,7 @@
 //! rules otherwise; American flapping and dark /l/; numbers spelled out; punctuation → phrase
 //! breaks and intonation.
 
+use super::korean::{self, Dialect};
 use super::syllables::WordSource;
 use super::{Intonation, Segment};
 use serde::{Deserialize, Serialize};
@@ -147,22 +148,48 @@ impl EnglishG2P {
             let mut said: Vec<String> = Vec::new();
             // which segments are English's, the only ones English's allophones apply to
             let mut english: Vec<bool> = Vec::new();
+            let mut nuclei = Vec::new();
+            let mut group_start = 0;
+            let mut group_len = 0;
+            let mut tense_initial = false;
+            let accentual = matches!(self.korean.dialect, Dialect::Central | Dialect::Southwest | Dialect::Jeju);
             for w in words.iter() {
                 // Hangul is Korean's: its sounds and aspiration come from the Korean front end
-                let korean = w.chars().next().is_some_and(super::korean::is_hangul);
-                let mut ws = if korean {
-                    super::korean::word_syllables_with(w, &self.korean).into_iter().flat_map(|y| y.onset.into_iter().chain([y.nucleus]).chain(y.coda)).collect()
+                let hangul = w.chars().next().is_some_and(korean::is_hangul);
+                let mut ws = if hangul {
+                    let syllables = korean::word_syllables_after(w, &self.korean, tense_initial);
+                    let mut word = Vec::new();
+                    for y in syllables {
+                        word.extend(y.onset);
+                        if accentual {
+                            nuclei.push((group_start, segs.len() + word.len()));
+                            group_len += 1;
+                        }
+                        word.push(y.nucleus);
+                        word.extend(y.coda);
+                    }
+                    word
                 } else {
                     self.word(w, true)
                 };
+                tense_initial = hangul && self.korean.dialect == Dialect::Middle
+                    && w.trim_end_matches(['〮', '〯', '\u{301}']).ends_with('ᇙ');
                 let Some(last) = ws.last_mut() else { continue };
                 last.word_end = Some(true);
-                english.extend(std::iter::repeat_n(!korean, ws.len()));
+                english.extend(std::iter::repeat_n(!hangul, ws.len()));
                 segs.append(&mut ws);
                 said.push(w.clone());
+                if group_len >= 3 || !hangul {
+                    group_start = segs.len();
+                    group_len = 0;
+                }
             }
             apply_allophones(&mut segs, &english);
             let q = delim.contains('?');
+            let intonation = if q { Intonation::Question } else { Intonation::Statement };
+            let terminal = delim.is_empty() || delim.contains(['.', '!', '?']);
+            let boundary = (terminal && english.last() == Some(&false)).then_some(intonation);
+            korean::mark_accentual_phrases(&mut segs, &nuclei, self.korean.dialect, boundary);
             let pause = if delim.contains(['.', '!', '?']) {
                 0.35
             } else if !delim.is_empty() {
@@ -172,7 +199,7 @@ impl EnglishG2P {
             };
             words.clear();
             if !segs.is_empty() {
-                phrases.push(Phrase { segments: segs, intonation: if q { Intonation::Question } else { Intonation::Statement }, pause, words: said });
+                phrases.push(Phrase { segments: segs, intonation, pause, words: said });
             }
         };
         for part in &parts {

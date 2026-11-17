@@ -78,15 +78,22 @@ the word), ᅇ (read silent: its value is argued over), and the tone dots 〮 �
 after a vowel starts a syllable of its own. Old texts in the Hanyang private-use
 encoding must be converted to jamo first.
 
-The clusters: the ㅂ series reads as clusters (ᄠᅳᆮ [ptɯt], ᄢᅢ [pskɛ]); the ㅅ series is argued over,
-so it reads as clusters ([sk]) by default or, with `Options::siot_tense`, as tense consonants
-(ᄭᅮᆷ [k͈um]). A stop after a cluster's consonants doesn't aspirate.
+The ㅂ series reads as clusters (ᄠᅳᆮ [ptɯt], ᄢᅢ [pskɛ]). For the ㅅ series, Heo Ung (1953)
+argued for clusters and Lee Ki-Moon (1955) argued for fortis consonants. A later study
+distinguishes individual forms by spelling history. The cluster reading ([sk]) and
+`Options::siot_tense` alternative (ᄭᅮᆷ [k͈um]) illustrate the hypotheses.
+[Research history](https://www.korean.go.kr/nkview/nklife/1997_4/1997_0404.pdf).
+[Re-examination](https://www.kci.go.kr/kciportal/landing/article.kci?arti_id=ART003015247).
 
-ㆍ's value is argued over too, so it has hypotheses (`korean::ARAE_A`): [ʌ] (이기문 1972; the
-default), [ɐ] and [ɔ] (sources not recorded yet). `chimera diagnose middle-korean [outdir]` says
-ᄒᆞᆫ ᄆᆞᅀᆞᆷ ᄉᆞᄅᆞᆷ ᄃᆞᆯ under each in the 15th-century reading (below), with the vowel's F1/F2 beside modern
-ㅏ ㅓ ㅗ and WAVs to compare (male: [ʌ] 584/1223 Hz, [ɐ] 605/1382, [ɔ] 562/977). A render shows what
-a hypothesis sounds like in this voice; it is not evidence for it.
+The default ㆍ is [ʌ], following the chart Ko cites from Lee Ki-Moon (1972, p. 137).
+[Ko, §3.2.1.1](https://eggschool.org/wp-content/uploads/2021/07/Ko-2012_Thesis_published_2018.pdf).
+The [ɐ] target is exploratory. [ɔ] is a comparison with modern Jeju.
+`chimera diagnose middle-korean [outdir]` reports F1/F2 for the three targets and, with an output
+directory, renders both ㅅ-series readings of ᄭᅮᆷ and ᄯᆞᄅᆞᆷ.
+
+In connected Middle Korean speech, written ᇙ can tense an eligible onset of the immediately
+following Korean word in the same phrase (호ᇙ〮 배〮). Phrase punctuation resets the link.
+[National Institute of Korean Language](https://www.korean.go.kr/front/onlineQna/onlineQnaView.do?mn_id=73&pageIndex=1&qna_seq=324332).
 
 ### Readings: dialects and the 15th century
 
@@ -107,16 +114,23 @@ The six regional readings cover selected pronunciation features. They apply to t
 entered and depend on the user for regional vocabulary, endings, and lexical tone marks.
 
 - **central** (the app default): Seoul-based, with a modern merger of ㅐ and ㅔ.
+  The accentual phrase starts low or high according to its onset and normally ends high.
+  [K-ToBI](https://sunahjun.humspace.ucla.edu/ktobi/K-tobi.html).
   [Seoul vowel merger](https://www.kci.go.kr/kciportal/ci/sereArticleSearch/ciSereArtiView.kci?sereArticleSearchBean.artiId=ART002914117).
   Omitted API/CLI readings and the legacy **seoul** identifier still select the original standard reading.
-- **southwest**: ㅢ reads [ɯ], as in 의사. [Southwestern dialect](https://encykorea.aks.ac.kr/Article/E0027670).
+- **southwest**: ㅢ reads [ɯ], as in 의사. The Chonnam contour starts low or high,
+  peaks near the start of the accentual phrase, and ends low.
+  [Southwestern dialect](https://encykorea.aks.ac.kr/Article/E0027670).
+  [Jun 1998](https://linguistics.ucla.edu/people/jun/papers%20in%20pdf/Jun-Phonology1998.pdf).
 - **southeast** (alias **gyeongsang**): ㅓ and ㅡ merge as [ə] and ㅆ reads as ㅅ.
-  An acute marks a high syllable (가́지). The speech planner approximates the accent with
-  its existing pitch and length targets. Word-initial low boundaries, the following low,
-  focus and age-specific timing are still unmodelled.
+  An acute marks a high syllable (가́지). Pitch rises within the marked vowel, stays high
+  on adjacent marked syllables, then targets a low two syllables after the last marked
+  vowel if the word is long enough. Focus and age-specific timing are still unmodelled.
   [Jun et al. 2006](https://linguistics.ucla.edu/people/jun/papers%20in%20pdf/Jun_Kim_Lee_Jun-J%20of%20EastAsianLing-2006.pdf).
 - **jeju**: ㆍ is [ɔ] following the recorded-vowel analysis of
   [Kim 2005](https://www.kci.go.kr/kciportal/landing/article.kci?arti_id=ART000965998), and ᆢ is [jɔ].
+  Medial accentual phrases use a low ending, frequently observed in conversational Jeju.
+  [Kim and Baek 2022](https://www.kci.go.kr/kciportal/ci/sereArticleSearch/ciSereArtiView.kci?sereArticleSearchBean.artiId=ART002829883).
 - **northwest**: suppresses ㄷ/ㅌ palatalization before 이 (같이); ㅈ-series affricates use an
   alveolar place. [Northwestern dialect](https://encykorea.aks.ac.kr/Article/E0027782).
 - **northeast**: takes northern Hamgyong alveolar affricates and ㅢ as [i]. An acute or one
@@ -129,22 +143,34 @@ entered and depend on the user for regional vocabulary, endings, and lexical ton
   speaking pitch, with the transition across the middle 40% of the vowel. These are synthesis
   settings. The planner gives explicit lexical tones priority over its default phrase contour.
 
+Seoul, Chonnam and Jeju group adjacent whole Korean words until the group reaches three
+syllables, stopping at punctuation or a language change. This is a heuristic for prosodic
+phrasing. A question mark triggers a sentence-final rise and other sentence endings a fall.
+
 #### Comparison with recorded-speaker measurements
 
 - Middle Korean: in the 110 Hz male voice, the 250 ms vowel of 말〯 reached 99, 104 and 122 Hz
   at 25%, 50% and 75% of its duration (engine telemetry). 말 without a dot stayed near 99 Hz,
   and 말〮 near 126 Hz.
-- Southeastern: the synthesized 어무́이 contained a peak near 129 Hz in the marked second
-  vowel, up from roughly 108 Hz in the first vowel (about 3 semitones). Jun et al. (2006),
-  table 1, report a larger penultimate contrast for speaker JH (188 to 254 Hz in subject
-  position, about 5.2 semitones). The peak falls in the expected vowel, and the current model
-  has a smaller excursion in this spot check. The study also reports a later post-accent low
-  beyond the model's simple phrase fall.
+- Southeastern: the accent uses pitch targets of 90% and 121% of baseline (about 5.1
+  semitones), with the rise planned between 15% and 75% of the vowel. This is a synthesis
+  setting informed by the penultimate contrast for speaker JH (about 5.2 semitones in
+  subject position in Jun et al. 2006, table 1). In an engine spot check on 어무́이,
+  the preceding vowel held near 100 Hz and the marked vowel rose from 99 to 121 Hz
+  (about 3.3 semitones), reflecting the short vowel and smoothing between targets.
 - Jeju: a 30 ms window at the first vowel's midpoint in a male synthesis of ᄆᆞᆯ gave
   F1 554–621 Hz and F2 974–1062 Hz (LPC orders 12, 14 and 16 at 12 kHz). The older male
   speaker in [Kim et al. 2018](https://www.eksss.org/archive/view_article?pid=pss-10-1-57)
   averaged 549 and 954 Hz across the study items. The estimates depend on the measurement
   method, and this comparison uses the published averages.
+- A direct spot check used the National Institute of Korean Language's recordings labeled
+  톨/고지 (the slash denotes ㆍ), Hangyeong and Seogwipo, and the synthesis of ᄐᆞᆯ고지.
+  In hand-selected first-vowel windows, median F1/F2 were approximately 500/1380 Hz
+  for Hangyeong (0.475–0.500 s) and 650/1200 Hz for Seogwipo (0.320–0.350 s).
+  The male and female synthesis presets gave about 590/1150 and 670/1400 Hz respectively
+  (0.265–0.285 s). All values use 30 ms, order-14 LPC at 12 kHz. The clips vary with
+  the measurement window, and the presets are not matched speakers.
+  [Regional word recordings](https://www.korean.go.kr/front/page/pageView.do?mn_id=54&page_id=P000053).
 
 Sung lyrics read in the same setting; in a song the melody and the notes set pitch and length, so
 accents and tone dots do nothing there.

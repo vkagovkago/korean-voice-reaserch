@@ -14,7 +14,7 @@
 //! ㅈ ㅊ ㅉ are alveolo-palatal [tɕ], and ㅅ ㅆ before [i] or [j] are [ɕ].
 
 use super::syllables::FrontEnd;
-use super::{Segment, Syllable, Tone};
+use super::{Intonation, Segment, Syllable, Tone};
 
 const BASE: u32 = 0xAC00;
 
@@ -131,9 +131,9 @@ pub struct Hypothesis {
 /// the default. A render of each is a demonstration of the hypothesis, not evidence for it. Under
 /// the first, ㆍ sounds as this front end's modern ㅓ does.
 pub const ARAE_A: [Hypothesis; 3] = [
-    Hypothesis { ipa: "ʌ", label: "back unrounded, low-mid", source: Some("이기문 (1972), 국어음운사연구") },
-    Hypothesis { ipa: "ɐ", label: "central, near-low", source: None },
-    Hypothesis { ipa: "ɔ", label: "back rounded, low-mid", source: None },
+    Hypothesis { ipa: "ʌ", label: "back unrounded, low-mid", source: Some("이기문 (1972), p. 137, as cited by Ko (2012), §3.2.1.1") },
+    Hypothesis { ipa: "ɐ", label: "central, near-low (comparison target)", source: None },
+    Hypothesis { ipa: "ɔ", label: "back rounded, low-mid (modern Jeju comparison)", source: Some("김원보 (2005), 제주방언에서 [·]음의 음향분석") },
 ];
 
 /// Old Hangul's other letters, with the values most accounts agree on: ㅿ [z], ㆁ [ŋ] (as an
@@ -484,10 +484,15 @@ pub fn word_syllables(word: &str) -> Vec<Syllable> {
 /// [`word_syllables`] read with `o`: ㆍ as `o.arae_a` (one of [`ARAE_A`]'s values, or any vowel),
 /// in `o.dialect`.
 pub fn word_syllables_with(word: &str, o: &Options) -> Vec<Syllable> {
+    word_syllables_after(word, o, false)
+}
+
+/// Read a word after a written ᇙ within the same breath group.
+pub(super) fn word_syllables_after(word: &str, o: &Options, tense_initial: bool) -> Vec<Syllable> {
     // a word the rules can't read (they need its parts) is read from its respelling, and each
     // syllable keeps the letter the lyrics wrote
-    let Some((_, said)) = SPELLED_AS.iter().find(|(w, _)| *w == word) else { return syllables_of(word, o) };
-    let mut out = syllables_of(said, o);
+    let Some((_, said)) = SPELLED_AS.iter().find(|(w, _)| *w == word) else { return syllables_of(word, o, tense_initial) };
+    let mut out = syllables_of(said, o, tense_initial);
     for (y, c) in out.iter_mut().zip(word.chars()) {
         y.text = c.to_string();
     }
@@ -506,11 +511,14 @@ const SPELLED_AS: &[(&str, &str)] = &[
     ("교과서", "교꽈서"), ("길가", "길까"), ("강가", "강까"), ("손등", "손뜽"), ("밤길", "밤낄"),
 ];
 
-fn syllables_of(word: &str, opts: &Options) -> Vec<Syllable> {
+fn syllables_of(word: &str, opts: &Options, tense_initial: bool) -> Vec<Syllable> {
     let gyeongsang = opts.dialect == Dialect::Gyeongsang;
     let middle = opts.dialect == Dialect::Middle;
     let northeast = opts.dialect == Dialect::Northeast;
     let mut blocks = blocks_of(word, opts.arae_a);
+    if tense_initial && let Some(first) = blocks.first_mut().filter(|b| b.pre.is_empty()) {
+        first.onset = first.onset.map(tense);
+    }
     // the reading's vowels (Gyeongsang's ㅆ as ㅅ is read with the onset, below), and the ㅅ-series
     // clusters as tense consonants when that is the reading asked for
     let mut offglide = vec![false; blocks.len()];
@@ -598,7 +606,57 @@ fn syllables_of(word: &str, opts: &Options) -> Vec<Syllable> {
             ..Default::default()
         });
     }
+    if gyeongsang {
+        mark_kyungsang_accent(&mut out);
+    }
     out
+}
+
+/// A marked northern Kyungsang accent has a high peak and a later low (Jun et al. 2006).
+/// The input supplies the accent. Short words may end before the trailing low is reached.
+fn mark_kyungsang_accent(word: &mut [Syllable]) {
+    let Some(first) = word.iter().position(|s| s.nucleus.stress == Some(1)) else { return };
+    let mut last_high = None;
+    for (i, syllable) in word.iter_mut().enumerate() {
+        if syllable.nucleus.stress == Some(1) {
+            syllable.nucleus.tone = Some(if last_high.is_some_and(|j| j + 1 == i) { Tone::AccentHigh } else { Tone::Accent });
+            last_high = Some(i);
+        } else if i < first || last_high.is_some_and(|j| i >= j + 2) {
+            syllable.nucleus.tone = Some(Tone::Low);
+        }
+    }
+}
+
+/// Approximate accentual phrases by grouping short adjacent words, stopping at three nuclei
+/// or a language/punctuation boundary. Apply Seoul's THLH and the low edge of the Chonnam and
+/// conversational Jeju patterns. Phrase-final pitch is set by the punctuation of the utterance.
+pub(super) fn mark_accentual_phrases(segments: &mut [Segment], nuclei: &[(usize, usize)], dialect: Dialect, boundary: Option<Intonation>) {
+    if !matches!(dialect, Dialect::Central | Dialect::Southwest | Dialect::Jeju) {
+        return;
+    }
+    for group in nuclei.chunk_by(|a, b| a.0 == b.0) {
+        let (begin, first) = group[0];
+        let high_start = segments[begin..first].first().is_some_and(|s| {
+            s.fortis == Some(true) || s.vot.is_some_and(|v| v >= ASPIRATED_VOT)
+                || matches!(s.ipa.as_str(), "s" | "ɕ" | "h")
+        });
+        let edge = if dialect == Dialect::Central { Tone::High } else { Tone::Low };
+        for (i, &(_, vowel)) in group.iter().enumerate() {
+            let tone = if i + 1 == group.len() {
+                edge
+            } else if i == 0 {
+                if high_start { Tone::High } else { Tone::Low }
+            } else if i == 1 || dialect == Dialect::Jeju {
+                Tone::High
+            } else {
+                Tone::Low
+            };
+            segments[vowel].tone = Some(tone);
+        }
+    }
+    if let (Some(boundary), Some(&(_, vowel))) = (boundary, nuclei.last()) {
+        segments[vowel].tone = Some(if boundary == Intonation::Question { Tone::Rising } else { Tone::Falling });
+    }
 }
 
 /// The Korean front end: Hangul blocks, by the rules above (no data needed), read with its options.

@@ -118,6 +118,17 @@ pub fn run_middle(ctx: &Ctx, a: &[String]) -> Result<(), String> {
             println!("  {} ㆍ=[{}] {} ({}): {}", (b'A' + k as u8) as char, h.ipa, h.label, h.source.unwrap_or("source not recorded"), row.join("   "));
         }
     }
+    if let Some(d) = out_dir {
+        let (body, name, f0) = VOICES[0];
+        for (word, label) in [("ᄭᅮᆷ", "kkum"), ("ᄯᆞᄅᆞᆷ", "ttarom")] {
+            for (siot_tense, reading) in [(false, "cluster"), (true, "fortis")] {
+                let options = Options { dialect: Dialect::Middle, siot_tense, ..Default::default() };
+                let (_, out, _) = say(word_syllables_with(word, &options), body, name, f0);
+                let path = format!("{d}/{label}-{reading}.wav");
+                wav::write(&path, &out, FS as u32, ctx.float).map_err(|e| format!("{path}: {e}"))?;
+            }
+        }
+    }
     Ok(())
 }
 

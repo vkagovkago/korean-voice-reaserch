@@ -245,8 +245,9 @@ fn gyeongsang_merges_eo_and_eu_says_ss_as_s_and_raises_marked_syllables() {
     let peak_on_first = |w: &str| {
         let segs: Vec<Segment> = read(w, &gs).iter().flat_map(|s| s.onset.iter().cloned().chain([s.nucleus.clone()]).chain(s.coda.iter().cloned())).collect();
         let plan = plan_utterance(&segs, &PlanOptions::default());
-        let f0s: Vec<f64> = plan.gestures.iter().filter(|g| g.label.as_ref().map(|l| l.as_str()) == Some("pitch")).filter_map(|g| g.targets.get(ControlKey::F0)).collect();
-        f0s[0] > f0s[1]
+        let first = plan.segments.iter().find(|s| s.kind == "vowel").unwrap();
+        let peak = plan.gestures.iter().find(|g| g.targets.get(ControlKey::F0).is_some_and(|f| f > 130.0)).unwrap();
+        peak.t0 >= first.t0 && peak.t0 < first.t1
     };
     assert!(peak_on_first("가\u{301}지") && !peak_on_first("가지\u{301}"));
     // the lyric router keeps the mark inside the word
@@ -397,4 +398,57 @@ fn middle_korean_rises_inside_the_vowel_even_at_the_end_of_a_statement() {
         sum / weight
     };
     assert!(f0_at(0.2) < f0_at(0.5) && f0_at(0.5) < f0_at(0.8));
+}
+
+
+#[test]
+fn middle_korean_tenses_after_written_rieul_hieuh_across_a_space() {
+    use chimera::phonetics::english::EnglishG2P;
+    use chimera::phonetics::korean::Dialect;
+
+    let mut g = EnglishG2P::new();
+    g.korean.dialect = Dialect::Middle;
+    let joined = &g.to_phrases("호ᇙ〮 배〮")[0];
+    assert_eq!(joined.words, ["호ᇙ〮", "배〮"]);
+    assert!(joined.segments[2].word_end == Some(true));
+    assert_eq!(joined.segments[3].ipa, "p");
+    assert_eq!(joined.segments[3].fortis, Some(true));
+    assert_eq!(joined.segments[3].aspirated, Some(false));
+    assert_eq!(g.to_phrases("호ᇙ〮, 배〮")[1].segments[0].fortis, None);
+    assert_eq!(g.to_phrases("홀 배")[0].segments[3].fortis, None);
+    assert_eq!(g.to_phrases("호ᇙ〮 abc 배〮")[0].segments.iter().rev().nth(2).and_then(|s| s.fortis), None);
+    g.korean.dialect = Dialect::Seoul;
+    assert_eq!(g.to_phrases("호ᇙ〮 배〮")[0].segments[3].fortis, None);
+}
+
+#[test]
+fn korean_phrase_edges_and_final_tones_depend_on_the_reading() {
+    use chimera::phonetics::Tone;
+    use chimera::phonetics::english::EnglishG2P;
+    use chimera::phonetics::korean::Dialect;
+
+    let tones = |dialect, text| {
+        let mut g = EnglishG2P::new();
+        g.korean.dialect = dialect;
+        g.to_phrases(text).into_iter().flat_map(|p| p.segments.into_iter().filter_map(|s| s.tone)).collect::<Vec<_>>()
+    };
+    use Tone::{Falling, High, Low, Rising};
+    assert_eq!(tones(Dialect::Central, "바다로 가요?"), [Low, High, High, Low, Rising]);
+    assert_eq!(tones(Dialect::Southwest, "바다로 가요."), [Low, High, Low, Low, Falling]);
+    assert_eq!(tones(Dialect::Jeju, "코끼리가 와요?"), [High, High, High, Low, Low, Rising]);
+    assert_eq!(tones(Dialect::Seoul, "바다로 가요?"), []);
+    assert_eq!(tones(Dialect::Southwest, "Hello 바다로 there."), [Low, High, Low]);
+}
+
+#[test]
+fn kyungsang_accent_keeps_a_double_high_and_places_the_late_low() {
+    use chimera::phonetics::Tone;
+    use chimera::phonetics::korean::{Dialect, Options, word_syllables_with};
+    let o = Options { dialect: Dialect::Gyeongsang, ..Default::default() };
+    let tones = |text| word_syllables_with(text, &o).into_iter().map(|s| s.nucleus.tone).collect::<Vec<_>>();
+    use Tone::{Accent, AccentHigh, Low};
+    assert_eq!(tones("가́나다"), [Some(Accent), None, Some(Low)]);
+    assert_eq!(tones("가́나́다"), [Some(Accent), Some(AccentHigh), None]);
+    assert_eq!(tones("가나다́"), [Some(Low), Some(Low), Some(Accent)]);
+    assert_eq!(tones("가나다"), [None, None, None]);
 }

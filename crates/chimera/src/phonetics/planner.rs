@@ -421,7 +421,7 @@ pub fn plan_utterance(input: &[Segment], o: &PlanOptions) -> Plan {
     // (statements) into the final low; earlier accents are smaller (a "hat" pattern)
     let mut nuclear: isize = -1;
     for &i in &v_idx {
-        if segs[i].stress == Some(1) && !segs[i].glide_from {
+        if segs[i].tone.is_none() && segs[i].stress == Some(1) && !segs[i].glide_from {
             nuclear = i as isize;
         }
     }
@@ -433,20 +433,26 @@ pub fn plan_utterance(input: &[Segment], o: &PlanOptions) -> Plan {
         let mut target: f64;
         let has_f0 = truthy(s.f0);
         if !sung && !has_f0 && let Some(tone) = s.tone {
-            // Pitch targets are relative to the selected speaking voice. An equal-weight
-            // crossfade keeps rising tone continuous and reaches high before the coda.
             let low = f0 * 0.9;
             let high = f0 * 1.15;
-            let ramp = pitch_ramp(t1 - t0);
-            if tone == Tone::Rising {
-                let rise_start = t0 + 0.30 * (t1 - t0);
-                let rise_end = t0 + 0.70 * (t1 - t0);
-                let rise = rise_end - rise_start;
-                gestures.push(Gesture::new(t0, rise_start, ramp, rise, 2.0, one(ControlKey::F0, low)).label("pitch"));
-                gestures.push(Gesture::new(rise_end, hold, rise, ramp, 2.0, one(ControlKey::F0, high)).label("pitch"));
+            let accent_high = f0 * 1.21;
+            let dur = t1 - t0;
+            let ramp = pitch_ramp(dur);
+            let (start, finish, from, to) = match tone {
+                Tone::Low => (low, low, 0.0, 0.0),
+                Tone::High => (high, high, 0.0, 0.0),
+                Tone::AccentHigh => (accent_high, accent_high, 0.0, 0.0),
+                Tone::Rising => (low, high, 0.30, 0.70),
+                Tone::Falling => (high, low, 0.30, 0.85),
+                Tone::Accent => (low, accent_high, 0.15, 0.75),
+            };
+            if from == to {
+                gestures.push(Gesture::new(t0, hold, ramp, ramp, 2.0, one(ControlKey::F0, start)).label("pitch"));
             } else {
-                let target = if tone == Tone::Low { low } else { high };
-                gestures.push(Gesture::new(t0, hold, ramp, ramp, 2.0, one(ControlKey::F0, target)).label("pitch"));
+                // Complementary ramps crossfade the two targets inside the vowel.
+                let rise = (to - from) * dur;
+                gestures.push(Gesture::new(t0, t0 + from * dur, ramp, rise, 2.0, one(ControlKey::F0, start)).label("pitch"));
+                gestures.push(Gesture::new(t0 + to * dur, hold, rise, ramp, 2.0, one(ControlKey::F0, finish)).label("pitch"));
             }
             continue;
         }
