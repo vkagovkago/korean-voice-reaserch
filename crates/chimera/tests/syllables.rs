@@ -279,6 +279,16 @@ fn korean_words_in_speech_keep_their_own_l_and_d() {
 }
 
 #[test]
+fn speech_reads_both_scripts_when_english_and_hangul_touch() {
+    use chimera::phonetics::english::EnglishG2P;
+
+    let g = EnglishG2P::new();
+    let adjacent = g.to_phrases("Hello안녕하세요 world한글test");
+    assert_eq!(adjacent[0].words, ["hello", "안녕하세요", "world", "한글", "test"]);
+    assert_eq!(adjacent, g.to_phrases("Hello 안녕하세요 world 한글 test"));
+}
+
+#[test]
 fn sung_lyrics_read_hangul_in_the_dialect() {
     use chimera::phonetics::korean::{Dialect, Options};
     use chimera::phonetics::syllables::lyrics_to_syllables_in;

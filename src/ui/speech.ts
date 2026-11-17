@@ -61,10 +61,13 @@ export async function speakText(text: string, o: { ipa: boolean; body: BodyMix; 
   let phrases: Phrase[];
   if (o.ipa) phrases = ipaToPhrases(text);
   else {
-    try {
-      await g2p.load();
-    } catch {
-      // dictionary unavailable: the letter-to-sound rules still work
+    // Only English (including numbers spelled out by the planner) uses CMUdict.
+    if (/[a-z0-9]/i.test(text)) {
+      try {
+        await g2p.load();
+      } catch {
+        // dictionary unavailable: the letter-to-sound rules still work
+      }
     }
     phrases = g2p.toPhrases(text, o.dialect);
   }

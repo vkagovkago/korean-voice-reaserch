@@ -17,15 +17,15 @@ import type { InfoFn, SlotsFn } from "./AnatomyView.tsx";
 import { V } from "../colors.ts";
 import { engine } from "../../audio/AudioEngine.ts";
 
-const EXAMPLES = ["Hello. Can you hear me?", "She sells sea shells by the sea shore.", "Every sound here is air moving through a throat.", "The quick brown fox jumps over the lazy dog."];
+const EXAMPLES = ["Hello. Can you hear me?", "She sells sea shells by the sea shore.", "Every sound here is air moving through a throat.", "The quick brown fox jumps over the lazy dog.", "안녕하세요. 만나서 반가워요."];
 
 // Hunminjeongeum eonhae, Wolin seokbo vol. 1. Punctuation and spaces are editorial.
 // Facsimile on slide 4: https://contents.kocw.or.kr/document/lec/2012/ChungNam/HongSungShim/09.pdf
 const PREFACE = [
-  "나랏〮말〯ᄊᆞ미〮 中듀ᇰ國귁〮에〮 달아〮 文문字ᄍᆞᆼ〮와〮로〮 서르 ᄉᆞᄆᆞᆺ디〮 아니〮ᄒᆞᆯᄊᆡ〮,",
-  "이〮런 젼ᄎᆞ〮로〮 어린〮 百ᄇᆡᆨ셔ᇰ〮이〮 니르고〮져〮 호ᇙ〮 배〮 이셔〮도〮 ᄆᆞᄎᆞᆷ〮내〯 제 ᄠᅳ〮들〮 시러〮 펴디〮 몯〯ᄒᆞᇙ 노〮미〮 하니〮라〮.",
-  "내〮 이〮ᄅᆞᆯ〮 爲윙〮ᄒᆞ〮야〮 어〯엿비〮 너겨〮 새〮로〮 스〮믈〮여듧〮 字ᄍᆞᆼ〮ᄅᆞᆯ〮 ᄆᆡᇰᄀᆞ〮노니〮,",
-  "사〯ᄅᆞᆷ 마〯다〮 ᄒᆡ〯ᅇᅧ〮 수〯ᄫᅵ〮 니겨〮 날〮로〮 ᄡᅮ〮메〮 便뼌安ᅙᅡᆫ킈〮 ᄒᆞ고〮져〮 ᄒᆞᇙᄯᆞᄅᆞ미〮니라〮.",
+  "나랏〮말〯ᄊᆞ미〮 듀ᇰ귁〮에〮 달아〮 문ᄍᆞᆼ〮와〮로〮 서르 ᄉᆞᄆᆞᆺ디〮 아니〮ᄒᆞᆯᄊᆡ〮,",
+  "이〮런 젼ᄎᆞ〮로〮 어린〮 ᄇᆡᆨ셔ᇰ〮이〮 니르고〮져〮 호ᇙ〮 배〮 이셔〮도〮 ᄆᆞᄎᆞᆷ〮내〯 제 ᄠᅳ〮들〮 시러〮 펴디〮 몯〯ᄒᆞᇙ 노〮미〮 하니〮라〮.",
+  "내〮 이〮ᄅᆞᆯ〮 윙〮ᄒᆞ〮야〮 어〯엿비〮 너겨〮 새〮로〮 스〮믈〮여듧〮 ᄍᆞᆼ〮ᄅᆞᆯ〮 ᄆᆡᇰᄀᆞ〮노니〮,",
+  "사〯ᄅᆞᆷ 마〯다〮 ᄒᆡ〯ᅇᅧ〮 수〯ᄫᅵ〮 니겨〮 날〮로〮 ᄡᅮ〮메〮 뼌ᅙᅡᆫ킈〮 ᄒᆞ고〮져〮 ᄒᆞᇙᄯᆞᄅᆞ미〮니라〮.",
 ].join(" ");
 
 // IPA pulmonic consonant chart (rows = manner, columns = place); empty cells are null
@@ -148,6 +148,7 @@ export function SpeakRight() {
   const start = useStore((s) => s.start);
   const [text, setText] = useState(EXAMPLES[0]);
   const [ipa, setIpa] = useState(false);
+  const hasHangul = HANGUL.test(text);
   const [rate, setRate] = useState(1);
   const dialect = useDialect((s) => s.dialect);
   const sayBox = useRef<HTMLTextAreaElement>(null);
@@ -198,7 +199,7 @@ export function SpeakRight() {
         <div className="act-slider">
           <Slider label="Rate" value={rate} min={0.5} max={1.8} onChange={setRate} format={(v) => `${v.toFixed(2)}×`} />
         </div>
-        <Chip on={ipa} onClick={() => setIpa(!ipa)}>
+        <Chip on={ipa} disabled={hasHangul} onClick={() => setIpa(!ipa)}>
           Text is IPA
         </Chip>
       </ActionBar>
@@ -208,9 +209,13 @@ export function SpeakRight() {
             <textarea
               ref={sayBox}
               value={text}
-              onChange={(e) => setText(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value;
+                setText(value);
+                if (HANGUL.test(value)) setIpa(false);
+              }}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) void speak();
+                if (!e.nativeEvent.isComposing && e.key === "Enter" && (e.metaKey || e.ctrlKey)) press();
                 e.stopPropagation();
               }}
               rows={2}

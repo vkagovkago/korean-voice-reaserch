@@ -106,8 +106,8 @@ keyboard can't: initials, vowels and finals as conjoining jamo (the archaic lett
 clusters included), and the tone dots and the accent mark. It moves from initial to vowel to final
 as you type, and types at the caret without raising a phone's own keyboard. Speak's examples
 include the preface of Hunminjeongeum in its 15th-century Korean (the 언해본's; the 해례본's own
-preface is Classical Chinese, which the voice can't read), with its Chinese characters beside
-their 동국정운 readings and the [transcribed tone dots](https://atlas.mkhz.kr/archive/hunminjeongeum-eonhae/hmje_01_seomun). The dots were checked against the [facsimile on slide 4](https://contents.kocw.or.kr/document/lec/2012/ChungNam/HongSungShim/09.pdf). Picking the example switches to Middle Korean. English's allophones
+preface is Classical Chinese, which the voice can't read), written in Hangul with the 동국정운 readings
+for Hanja and the [transcribed tone dots](https://atlas.mkhz.kr/archive/hunminjeongeum-eonhae/hmje_01_seomun). The dots were checked against the [facsimile on slide 4](https://contents.kocw.or.kr/document/lec/2012/ChungNam/HongSungShim/09.pdf). Picking the example switches to Middle Korean. English's allophones
 (flapping, dark /l/) apply to English only.
 
 The six regional readings cover selected pronunciation features. They apply to the spelling

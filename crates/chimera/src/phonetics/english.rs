@@ -218,7 +218,11 @@ impl EnglishG2P {
                         k
                     })
                     .collect();
-                words.extend(lower.split(|c: char| !(c.is_ascii_lowercase() || c == '\'' || c == '-' || super::korean::in_korean_word(c))).filter(|w| !w.is_empty()).map(str::to_string));
+                let tokens = lower.split(|c: char| !(c.is_ascii_lowercase() || c == '\'' || c == '-' || korean::in_korean_word(c)));
+                for token in tokens.filter(|t| !t.is_empty()) {
+                    // A switch of script is a word boundary, even in "Hello안녕하세요".
+                    words.extend(split_keeping(token, korean::in_korean_word).into_iter().filter(|w| !w.is_empty()));
+                }
             }
         }
         flush("", &mut words);
