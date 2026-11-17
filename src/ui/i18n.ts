@@ -35,7 +35,7 @@ const KO: Record<string, string> = {
   "A voice grown from a simulated airway": "시뮬레이션한 기도(氣道)에서 자라난 목소리",
   Mode: "모드", Play: "연주", Speak: "말하기", Sing: "노래", Bestiary: "괴수도감", Beatbox: "비트박스",
   Volume: "볼륨", "Engine load": "엔진 부하",
-  "Korean reading": "한국어 읽기", "Central dialect (Seoul)": "중부 방언 (서울)",
+  "Korean reading": "한국어 읽기", "Standard Korean": "표준어", "Central dialect (Seoul)": "중부 방언 (서울)",
   "Southwestern dialect": "서남 방언", "Southeastern dialect": "동남 방언",
   "Northwestern dialect": "서북 방언", "Northeastern dialect": "동북 방언",
   "Jeju dialect": "제주 방언", "Middle Korean (15th c.)": "중세국어 (15세기)", "Old Hangul keyboard": "옛한글 자판",

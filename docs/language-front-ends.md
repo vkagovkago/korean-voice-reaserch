@@ -110,6 +110,9 @@ preface is Classical Chinese, which the voice can't read), written in Hangul wit
 for Hanja and the [transcribed tone dots](https://atlas.mkhz.kr/archive/hunminjeongeum-eonhae/hmje_01_seomun). The dots were checked against the [facsimile on slide 4](https://contents.kocw.or.kr/document/lec/2012/ChungNam/HongSungShim/09.pdf). Picking the example switches to Middle Korean. English's allophones
 (flapping, dark /l/) apply to English only.
 
+**seoul** (the menu's "Standard Korean", and what an omitted API/CLI reading selects) is the
+standard pronunciation above alone: ㅐ and ㅔ kept apart, no accentual-phrase pitch.
+
 The six regional readings cover selected pronunciation features. They apply to the spelling
 entered and depend on the user for regional vocabulary, endings, and lexical tone marks.
 
@@ -117,7 +120,6 @@ entered and depend on the user for regional vocabulary, endings, and lexical ton
   The accentual phrase starts low or high according to its onset and normally ends high.
   [K-ToBI](https://sunahjun.humspace.ucla.edu/ktobi/K-tobi.html).
   [Seoul vowel merger](https://www.kci.go.kr/kciportal/ci/sereArticleSearch/ciSereArtiView.kci?sereArticleSearchBean.artiId=ART002914117).
-  Omitted API/CLI readings and the legacy **seoul** identifier still select the original standard reading.
 - **southwest**: ㅢ reads [ɯ], as in 의사. The Chonnam contour starts low or high,
   peaks near the start of the accentual phrase, and ends low.
   [Southwestern dialect](https://encykorea.aks.ac.kr/Article/E0027670).
