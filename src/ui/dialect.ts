@@ -17,7 +17,7 @@ export const DIALECT_OPTIONS: { value: KoreanDialect; label: string }[] = [
 
 /** How Hangul reads, on the Speak and Sing screens alike (kept across visits). */
 export const useDialect = create<{ dialect: KoreanDialect; setDialect: (d: KoreanDialect) => void }>((set) => {
-  let dialect: KoreanDialect = "central";
+  let dialect: KoreanDialect = "seoul";
   try {
     const v = localStorage.getItem(KEY) as KoreanDialect | null;
     const saved = v === "gyeongsang" ? "southeast" : v;
