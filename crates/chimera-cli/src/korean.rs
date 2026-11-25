@@ -221,6 +221,13 @@ pub fn run(ctx: &Ctx, a: &[String]) -> Result<(), String> {
             // Gyeongsang's ㅅ: Busan 38 against Seoul 48 ms (Holliday 2012), so ~0.79 of Seoul's 60
             let siot = if dialect == Dialect::Gyeongsang { 40.0..=54.0 } else { 52.0..=68.0 };
             println!("바파사 {label:<10} lax {:.0} {} asp {:.0} {} ㅅ asp {:.0} {}", l.vot, check(lax.contains(&l.vot)), a.vot, check(asp.contains(&a.vot)), s.vot, check(siot.contains(&s.vot)));
+            if dialect == Dialect::Northeast {
+                // Yanbian's aspirated stop starts its vowel only 1.2-1.7 st above the lax one's, the
+                // tense one about level with it (오미라·양휘 2013, Table 1)
+                let t = measure_syllables(word_syllables_with("빠", &o), body, name, f0);
+                let (sa, stt) = (st(a.f0, l.f0), st(t.f0, l.f0));
+                println!("바파빠 northeast onset F0 st over lax: asp {sa:+.1} {} tense {stt:+.1} {}", check((0.6..=2.4).contains(&sa)), check((-0.8..=1.2).contains(&stt)));
+            }
             if dialect == Dialect::Gyeongsang {
                 // a high-low word's stop is shorter than a low-high one's (lax 41.28 vs 49.06 ms,
                 // aspirated 70.49 vs 76.06; 서민정 2026)

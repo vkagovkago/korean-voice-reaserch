@@ -629,11 +629,20 @@ fn syllables_of(word: &str, opts: &Options, tense_initial: bool) -> Vec<Syllable
                     _ if ipa == "ɦ" => Some(0.045),
                     _ => None,
                 };
+                // Yanbian (Hamgyong) stops barely move the vowel's pitch: young speakers' lax 136,
+                // aspirated 146, tense 142 Hz (men), 260 / 287 / 259 (women), so about -0.7, +0.7
+                // and -0.35 semitones around the middle (오미라·양휘 2013, Table 1), not Seoul's
+                // -2.4 and +2.5; their tones carry the pitch
+                let onset_f0 = (northeast && matches!(ipa, "p" | "t" | "k" | "ts" | "tɕ")).then(|| match aspirated {
+                    Some(true) if matches!(o, 'ㅋ' | 'ㅌ' | 'ㅍ' | 'ㅊ') => 0.7,
+                    Some(true) => -0.7,
+                    _ => -0.35,
+                });
                 // ㄲ ㄸ ㅃ ㅉ ㅆ stiffen the folds into the vowel (fortis)
                 let fortis = matches!(o, 'ㄲ' | 'ㄸ' | 'ㅃ' | 'ㅉ' | 'ㅆ').then_some(true);
                 // a voiceless lax stop starts its vowel breathy (Cho, Jun & Ladefoged 2002)
                 let breathy = (matches!(o, 'ㄱ' | 'ㄷ' | 'ㅂ' | 'ㅈ') && aspirated == Some(true)).then_some(true);
-                Segment { aspirated, vot, dur: if clustered { None } else { dur }, fortis, breathy, ..Segment::new(ipa) }
+                Segment { aspirated, vot, dur: if clustered { None } else { dur }, fortis, breathy, onset_f0, ..Segment::new(ipa) }
             }))
             .collect();
         // ㅢ after a consonant is plain [i] (희 → 히)

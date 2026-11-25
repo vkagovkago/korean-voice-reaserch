@@ -529,3 +529,17 @@ fn pitch_accent_and_northern_readings_keep_lax_and_aspirated_stops_apart_by_vot(
     let siot = |d| word_syllables_with("사", &Options { dialect: d, ..Default::default() })[0].onset[0].vot.unwrap();
     assert!(siot(Dialect::Gyeongsang) < 0.85 * siot(Dialect::Seoul));
 }
+
+#[test]
+fn yanbian_stops_barely_move_the_vowels_pitch() {
+    // young Yanbian speakers: lax 136, aspirated 146, tense 142 Hz (men; 오미라·양휘 2013, Table 1),
+    // where Seoul's aspirated starts ~5 semitones over its lax
+    use chimera::phonetics::korean::{Dialect, Options, word_syllables_with};
+    let f0 = |w, d| word_syllables_with(w, &Options { dialect: d, ..Default::default() })[0].onset[0].onset_f0;
+    let ne = Dialect::Northeast;
+    let (l, a, t) = (f0("바", ne).unwrap(), f0("파", ne).unwrap(), f0("빠", ne).unwrap());
+    assert!(a - l > 1.0 && a - l < 2.0 && (t - l).abs() < 0.6, "{l} {a} {t}");
+    assert_eq!(f0("파", Dialect::Seoul), None);
+    let between = word_syllables_with("아바", &Options { dialect: ne, ..Default::default() })[1].onset[0].onset_f0;
+    assert_eq!(between, None); // a voiced lax stop between vowels
+}

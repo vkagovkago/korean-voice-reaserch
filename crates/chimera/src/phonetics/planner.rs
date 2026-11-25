@@ -177,6 +177,7 @@ struct Seg<'a> {
     palatalized: Option<bool>,
     breathy: Option<bool>,
     fortis: Option<bool>,
+    onset_f0: Option<f64>,
 }
 
 /// glottal abduction of breathy voice: /ɦ/'s, a gap the folds still vibrate across
@@ -221,10 +222,10 @@ pub fn plan_utterance(input: &[Segment], o: &PlanOptions) -> Plan {
             let base = durs[si];
             for (i, p) in parts.iter().enumerate() {
                 let dur = if parts.len() > 1 { base * (if i == 0 { 0.55 } else { 0.45 }) } else { base };
-                segs.push(Seg { tone: s.tone, ipa: p, dur: Some(dur), stress: s.stress, f0: s.f0, def: None, vowel: None, glide_from: i > 0, aspirated: None, vot: None, nasalized: s.nasalized, palatalized: None, breathy: s.breathy, fortis: None });
+                segs.push(Seg { tone: s.tone, ipa: p, dur: Some(dur), stress: s.stress, f0: s.f0, def: None, vowel: None, glide_from: i > 0, aspirated: None, vot: None, nasalized: s.nasalized, palatalized: None, breathy: s.breathy, fortis: None, onset_f0: None });
             }
         } else {
-            segs.push(Seg { tone: s.tone, ipa: &s.ipa, dur: Some(durs[si]), stress: s.stress, f0: s.f0, def: None, vowel: None, glide_from: false, aspirated: s.aspirated, vot: s.vot, nasalized: s.nasalized, palatalized: s.palatalized, breathy: s.breathy, fortis: s.fortis });
+            segs.push(Seg { tone: s.tone, ipa: &s.ipa, dur: Some(durs[si]), stress: s.stress, f0: s.f0, def: None, vowel: None, glide_from: false, aspirated: s.aspirated, vot: s.vot, nasalized: s.nasalized, palatalized: s.palatalized, breathy: s.breathy, fortis: s.fortis, onset_f0: s.onset_f0 });
         }
     }
     for s in segs.iter_mut() {
@@ -504,7 +505,7 @@ pub fn plan_utterance(input: &[Segment], o: &PlanOptions) -> Plan {
             let stop = [i.wrapping_sub(1), i.wrapping_sub(2)].into_iter().filter_map(|k| segs.get(k)).find(|c| !matches!(c.ipa, "j" | "w" | "ɥ" | "ɰ"));
             if let Some(st) = stop.filter(|c| c.vowel.is_none()) {
                 let fricative = st.def.is_some_and(|d| d.manner == Manner::Fricative);
-                let semitones = match (st.aspirated, st.vot) {
+                let semitones = if let Some(st) = st.onset_f0 { st } else { match (st.aspirated, st.vot) {
                     // ㅆ: fortis like the tense stops, and high after it as they are; ㅅ, though
                     // aspirated, is the reference (its onset F0 is not settled in the sources)
                     _ if fricative => if st.fortis == Some(true) { 2.5 } else { 0.0 },
@@ -512,7 +513,7 @@ pub fn plan_utterance(input: &[Segment], o: &PlanOptions) -> Plan {
                     (Some(true), Some(v)) if v > 0.05 => 2.5, // aspirated: longer than a lax stop's 45 ms
                     (Some(true), _) => -2.4,
                     _ => 0.0,
-                };
+                } };
                 target *= (semitones / 12.0_f64).exp2();
             }
             let last = n == v_idx.len() - 1;

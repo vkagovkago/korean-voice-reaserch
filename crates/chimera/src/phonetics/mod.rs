@@ -64,6 +64,11 @@ pub struct Segment {
     /// a pressed, tense voice into the vowel after it (Korean ㄲ ㄸ ㅃ ㅉ ㅆ, IPA k͈); None or false: plain
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fortis: Option<bool>,
+    /// on a stop or fricative, how far its vowel's pitch starts above (or below) the speaking pitch,
+    /// in semitones, as its front end decides it (Yanbian Korean's stops barely move it); None: the
+    /// planner's Korean default (tense and aspirated +2.5, lax -2.4)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub onset_f0: Option<f64>,
 }
 
 impl Segment {
