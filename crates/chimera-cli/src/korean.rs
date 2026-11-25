@@ -246,6 +246,15 @@ pub fn run(ctx: &Ctx, a: &[String]) -> Result<(), String> {
                 println!("바다 F0 range st  HL {rhl:.1} {} HH {rhh:.1} {} LH {rlh:.1} {}", check((2.3..=4.3).contains(&rhl)), check((2.6..=4.6).contains(&rhh)), check((5.9..=7.9).contains(&rlh)));
             }
         }
+        if name == "male" {
+            // Jeju's ㆍ in an older man's speech: F1 549, F2 954 Hz (78-year-old, 이승진·최홍식 2018,
+            // KSSS 10(1), Table 3); other 70s men 537/902 (신우봉·신지영 2012), 578/910 (김원보 2006),
+            // 614/849 (김종훈 2006)
+            let o = Options { dialect: Dialect::Jeju, ..Default::default() };
+            let (plan, out, _) = say(word_syllables_with("ᄆᆞᆯ", &o), body, name, f0);
+            let (f1, f2) = first_vowel_formants(&plan, &out);
+            println!("ᄆᆞᆯ jeju   ㆍ F1 {f1:.0} {} F2 {f2:.0} {}", check((520.0..=640.0).contains(&f1)), check((830.0..=1010.0).contains(&f2)));
+        }
         // sung (Sing's scaled voice onset times): pop singing measures ㅂ 27.7, ㅍ 32.7, ㅃ 10.8 ms
         // (이철희·한경훈 2020)
         let [l, a, t] = ["바", "파", "빠"].map(|w| measure_sung(w, body, name, f0));
@@ -277,6 +286,17 @@ mod tests {
             assert!(ss.vot < 22.0 && s.vot > 45.0, "{name}: ㅅ {} ㅆ {}", s.vot, ss.vot);
             assert!(ss.f0 > 0.0 && ss.tilt < s.tilt, "{name}: f0 {} tilt {} vs {}", ss.f0, ss.tilt, s.tilt);
         }
+    }
+
+    #[test]
+    fn jeju_arae_a_sits_where_older_jeju_men_say_it() {
+        // F1 537-614, F2 849-954 Hz across four studies of men in their 70s (이승진·최홍식 2018 and
+        // those it cites); the render's [ɔ] gives 575/997, F2 ~40 Hz above that range
+        let (body, name, f0) = VOICES[0];
+        let o = Options { dialect: Dialect::Jeju, ..Default::default() };
+        let (plan, out, _) = say(word_syllables_with("ᄆᆞᆯ", &o), body, name, f0);
+        let (f1, f2) = first_vowel_formants(&plan, &out);
+        assert!((520.0..=640.0).contains(&f1) && (830.0..=1010.0).contains(&f2), "{f1} {f2}");
     }
 
     #[test]
