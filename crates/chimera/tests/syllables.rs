@@ -407,6 +407,20 @@ fn regional_profiles_apply_distinct_pronunciation_rules() {
 }
 
 #[test]
+fn middle_korean_neither_palatalises_nor_fronts_its_dental_sibilants() {
+    // 15th century: ㄷ ㅌ before 이 stay (디 not 지), ㅈ ㅊ are dental [ts], and ㅅ before i is [s]
+    // (palatalisation came in the 17th-18th centuries; 이기문 1972)
+    use chimera::phonetics::korean::{Dialect, Options};
+    let mk = Options { dialect: Dialect::Middle, ..Default::default() };
+    assert_eq!(read_as("굳이", mk), "ku.di");
+    assert_eq!(read_as("같이", mk), "ka.ti");
+    assert_eq!(read_as("지", mk), "tsi");
+    assert_eq!(read_as("시", mk), "si");
+    assert_eq!(read_as("셔", mk), "sjə");
+    assert_eq!(read_as("같이", Options::default()), "ka.tɕi");
+}
+
+#[test]
 fn middle_korean_rises_inside_the_vowel_even_at_the_end_of_a_statement() {
     use chimera::control::score::{ControlKey, activation};
     use chimera::phonetics::english::EnglishG2P;

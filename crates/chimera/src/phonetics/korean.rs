@@ -345,7 +345,9 @@ fn join(a: &mut Block, b: &mut Block, dialect: Dialect) {
         }
         if a.coda.last().is_some_and(|&c| c != 'ㅇ') {
             let c = a.coda.pop().unwrap();
-            let before_i = b.vowel == "i" && b.glide.is_empty() && dialect != Dialect::Northwest;
+            // not in the northwest, nor in the 15th century: ㄷ ㅌ before 이 palatalised only from the
+            // 17th-18th (이기문 1972)
+            let before_i = b.vowel == "i" && b.glide.is_empty() && !matches!(dialect, Dialect::Northwest | Dialect::Middle);
             b.onset = Some(match c {
                 'ㄷ' if before_i => 'ㅈ',
                 'ㅌ' if before_i => 'ㅊ',
@@ -560,7 +562,8 @@ fn syllables_of(word: &str, opts: &Options, tense_initial: bool) -> Vec<Syllable
     for (i, b) in blocks.iter().enumerate() {
         let prev_coda = if i > 0 { blocks[i - 1].coda.last().copied() } else { None };
         let voiced_before = i > 0 && prev_coda.is_none_or(|c| matches!(c, 'ㄴ' | 'ㄹ' | 'ㅁ' | 'ㅇ'));
-        let front = b.vowel == "i" && b.glide != "w" || b.glide == "j";
+        // the 15th century's ㅅ ㅈ ㅊ were dental (치음) before any vowel, [s] [ts] [tsʰ]
+        let front = !middle && (b.vowel == "i" && b.glide != "w" || b.glide == "j");
         // an Old Hangul cluster's first consonants (ᄢ: [p s] before ㄱ), plain and unaspirated
         let clustered = !b.pre.is_empty();
         let pre = b.pre.iter().map(|&c| Segment { aspirated: (c == 'ㅂ').then_some(false), ..Segment::new(if c == 'ㅂ' { "p" } else { "s" }) });
@@ -568,8 +571,9 @@ fn syllables_of(word: &str, opts: &Options, tense_initial: bool) -> Vec<Syllable
             .chain(b.onset.map(|o| {
                 let o = if gyeongsang && o == 'ㅆ' { 'ㅅ' } else { o };
                 let (ipa, aspirated, vot) = onset_ipa(o, voiced_before && !clustered, front, prev_coda == Some('ㄹ'));
-                // Northern Hamgyong and the northwestern profile use alveolar affricates.
-                let ipa = if northeast || opts.dialect == Dialect::Northwest {
+                // Northern Hamgyong and the northwestern profile use alveolar affricates (Schertz et
+                // al. 2015), as the 15th century's dental ones were
+                let ipa = if northeast || opts.dialect == Dialect::Northwest || middle {
                     match ipa {
                         "tɕ" => "ts",
                         "dʑ" => "dz",
