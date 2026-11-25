@@ -619,6 +619,9 @@ fn syllables_of(word: &str, opts: &Options, tense_initial: bool) -> Vec<Syllable
                     _ if ipa == "ɾ" && i == 0 => Some(0.027),
                     // a voiced ㅈ between vowels: the planner's fallback said it for ~113 ms, twice a
                     // lax closure there (43-66 ms, 강현숙·김태경 2020; 58.9, 강희조·오미라 2024)
+                    // The north's is longer: its frication 63 ms against Seoul's 52 in 새장 (Hamgyong
+                    // and Pyongan speakers, Schertz et al. 2015), so 63/52 of it
+                    _ if matches!(ipa, "dʑ" | "dz") && (northeast || opts.dialect == Dialect::Northwest) => Some(0.085),
                     _ if matches!(ipa, "dʑ" | "dz") => Some(0.07),
                     (Some(false), _) => Some(0.12),
                     (Some(true), _) if matches!(o, 'ㅋ' | 'ㅌ' | 'ㅍ' | 'ㅊ') => Some(0.085),

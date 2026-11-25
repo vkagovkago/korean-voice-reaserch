@@ -512,6 +512,11 @@ fn pitch_accent_and_northern_readings_keep_lax_and_aspirated_stops_apart_by_vot(
     assert!(ga - gl > 3.0 * (sa - sl) && na - nl > 3.0 * (sa - sl));
     assert!(gl < sl && nl < gl && ga > sa);
     assert_eq!(gap(Dialect::Northwest), gap(Dialect::Northeast));
+    // the north's lax affricate between vowels frictates longer: 63 against Seoul's 52 ms in 새장
+    // (Schertz et al. 2015)
+    let j = |d| word_syllables_with("새장", &Options { dialect: d, ..Default::default() })[1].onset[0].dur.unwrap();
+    assert!((j(Dialect::Northwest) / j(Dialect::Seoul) - 63.0 / 52.0).abs() < 0.03);
+    assert_eq!(j(Dialect::Northeast), j(Dialect::Northwest));
     // the lax stop still starts its vowel breathy, whatever its VOT
     let o = Options { dialect: Dialect::Gyeongsang, ..Default::default() };
     assert_eq!(word_syllables_with("바", &o)[0].onset[0].breathy, Some(true));
