@@ -221,6 +221,13 @@ pub fn run(ctx: &Ctx, a: &[String]) -> Result<(), String> {
             // Gyeongsang's ㅅ: Busan 38 against Seoul 48 ms (Holliday 2012), so ~0.79 of Seoul's 60
             let siot = if dialect == Dialect::Gyeongsang { 40.0..=54.0 } else { 52.0..=68.0 };
             println!("바파사 {label:<10} lax {:.0} {} asp {:.0} {} ㅅ asp {:.0} {}", l.vot, check(lax.contains(&l.vot)), a.vot, check(asp.contains(&a.vot)), s.vot, check(siot.contains(&s.vot)));
+            if dialect == Dialect::Gyeongsang {
+                // a high-low word's stop is shorter than a low-high one's (lax 41.28 vs 49.06 ms,
+                // aspirated 70.49 vs 76.06; 서민정 2026)
+                let v = |w: &str| measure_syllables(word_syllables_with(w, &o), body, name, f0).vot;
+                let (hl, lh, phl, plh) = (v("바\u{301}다"), v("바다\u{301}"), v("파\u{301}다"), v("파다\u{301}"));
+                println!("바다 HL/LH  lax {hl:.0}/{lh:.0} {} asp {phl:.0}/{plh:.0} {}", check(hl < lh - 3.0), check(phl < plh - 3.0));
+            }
         }
         // sung (Sing's scaled voice onset times): pop singing measures ㅂ 27.7, ㅍ 32.7, ㅃ 10.8 ms
         // (이철희·한경훈 2020)

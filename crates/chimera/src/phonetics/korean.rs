@@ -660,8 +660,24 @@ fn syllables_of(word: &str, opts: &Options, tense_initial: bool) -> Vec<Syllable
     }
     if gyeongsang {
         mark_kyungsang_accent(&mut out);
+        shorten_hl_onset(&mut out);
     }
     out
+}
+
+/// A Gyeongsang word that is high then low (HL: its first syllable marked, its second not) starts
+/// its stop with a shorter VOT: lax 41.28 against HH 46.98 and LH 49.06 ms, aspirated 70.49
+/// against 74.85 and 76.06 (North Gyeongsang, 1,546 two-syllable words, 서민정 2026). Written here
+/// as 5 and 7 ms off the profile's lax and aspirated values (~14% and ~7%, as measured).
+fn shorten_hl_onset(word: &mut [Syllable]) {
+    let [first, second, ..] = word else { return };
+    if first.nucleus.stress != Some(1) || second.nucleus.stress == Some(1) {
+        return;
+    }
+    let (lax, aspirated, _) = stop_vots(Dialect::Gyeongsang);
+    if let Some(s) = first.onset.first_mut().filter(|s| s.aspirated == Some(true)) {
+        s.vot = s.vot.map(|v| if v == lax { v - 0.005 } else if v == aspirated { v - 0.007 } else { v });
+    }
 }
 
 /// A marked northern Kyungsang accent has a high peak and a later low (Jun et al. 2006).
