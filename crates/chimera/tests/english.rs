@@ -75,3 +75,13 @@ fn hangul_is_spoken_by_the_korean_front_end() {
     assert_eq!(p.words, ["안녕", "하세요"]);
     assert!(p.segments.iter().any(|s| s.ipa == "a") && p.segments.last().unwrap().word_end == Some(true));
 }
+
+#[test]
+fn a_seoul_phrase_denasalizes_its_first_nasal_only() {
+    // Park, Jang, Kim & Cho 2025: a Seoul phrase-initial ㄴ ㅁ keeps ~13 ms of nasal murmur
+    let p = g2p().to_phrases("나무가 많다. 어머니");
+    let first = &p[0].segments;
+    assert_eq!((first[0].ipa.as_str(), first[0].nasalized), ("n", Some(false)));
+    assert!(first[1..].iter().filter(|s| matches!(s.ipa.as_str(), "n" | "m")).all(|s| s.nasalized.is_none()));
+    assert!(p[1].segments.iter().all(|s| s.nasalized.is_none()), "a phrase starting with a vowel");
+}

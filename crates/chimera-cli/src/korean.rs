@@ -2,9 +2,10 @@
 //! Each place (ㄱ ㄷ ㅂ ㅈ) is said word-initially before /a/ as lax, aspirated and tense (가 카 까 …),
 //! plus ㅅ/ㅆ, in the male and female voices, and measured against modern Seoul speech:
 //!  - VOT: release to the folds' voicing onset (the glottis model's own voicing, so exact).
-//!    Seoul norms: aspirated 57-75 ms, lax 50-65, tense 16-24 (the ranges `korean.rs` cites)
+//!    Seoul norms: aspirated 57-75 ms, lax 50-65, tense 16-24 (the sources `korean.rs` cites)
 //!  - onset F0: YIN 25 ms into the voice, in semitones over the lax stop at the same place.
 //!    Norm: tense and aspirated about 5 semitones above lax (Beckman et al. 2014); checked as > 3
+//!  - after ㅅ/ㅆ, the aspiration: the frication's end to the voicing onset
 //!  - H1-A3 (dB), 30-50 ms into the voice: the spectral tilt, lowest after a tense stop (a pressed
 //!    voice; Cho, Jun & Ladefoged 2002); lax should be the breathiest (highest)
 //!
@@ -25,6 +26,7 @@ use chimera::phonetics::korean::{ARAE_A, Dialect, Options, word_syllables, word_
 use chimera::phonetics::Plan;
 use chimera::phonetics::planner::{PlanOptions, plan_utterance};
 use chimera::phonetics::Segment;
+use chimera::phonetics::sing::SUNG_VOT;
 use chimera::voice::human_voice::{HumanVoice, SourcePatch};
 
 /// (place, lax, aspirated, tense); ㅅ has no aspirated partner
@@ -45,7 +47,20 @@ pub struct Measured {
 
 /// Say one Korean syllable word-initially and measure its onset.
 pub fn measure(word: &str, body: HumanBody, name: &str, f0: f64) -> Measured {
-    let (plan, out, voicing) = say(word_syllables(word), body, name, f0);
+    measure_syllables(word_syllables(word), body, name, f0)
+}
+
+/// [`measure`] with the voice onset times scaled as Sing scales them
+fn measure_sung(word: &str, body: HumanBody, name: &str, f0: f64) -> Measured {
+    let mut syls = word_syllables(word);
+    for s in syls.iter_mut().flat_map(|s| s.onset.iter_mut()) {
+        s.vot = s.vot.map(|v| v * SUNG_VOT);
+    }
+    measure_syllables(syls, body, name, f0)
+}
+
+fn measure_syllables(syls: Vec<chimera::phonetics::Syllable>, body: HumanBody, name: &str, f0: f64) -> Measured {
+    let (plan, out, voicing) = say(syls, body, name, f0);
     let release = plan.segments[0].t1;
     let first = (release * FS / BLOCK as f64) as usize;
     let onset = (first..voicing.len()).find(|&i| voicing[i] > 0.5).unwrap_or(first) as f64 * BLOCK as f64 / FS;
@@ -182,11 +197,15 @@ pub fn run(ctx: &Ctx, a: &[String]) -> Result<(), String> {
                         format!("asp {sa:+.1} {} tense {stt:+.1} {}", check(sa > 3.0), check(stt > 3.0)),
                     )
                 }
-                // ㅅ/ㅆ: no VOT; ㅆ starts high as the tense stops do (ㅅ's own norm is unsettled, so
-                // it is the reference, not checked)
+                // ㅅ/ㅆ: the aspiration after the frication (ㅅ 29-78 ms before [a], ㅆ 9-14; Chang
+                // 2007, Yoon 2002); ㅆ starts high as the tense stops do (ㅅ's own onset F0 is
+                // unsettled, so it is the reference, not checked)
                 None => {
                     let stt = st(t.f0, l.f0);
-                    (String::new(), format!("tense {stt:+.1} {}", check(stt > 1.5)))
+                    (
+                        format!("ㅅ asp {:.0} {} ㅆ asp {:.0} {}", l.vot, check((45.0..=75.0).contains(&l.vot)), t.vot, check(t.vot <= 20.0)),
+                        format!("tense {stt:+.1} {}", check(stt > 1.5)),
+                    )
                 }
             };
             let tilts = m.iter().map(|x| format!("{:.1}", x.tilt)).collect::<Vec<_>>().join(" / ");
@@ -194,6 +213,10 @@ pub fn run(ctx: &Ctx, a: &[String]) -> Result<(), String> {
             let lax_top = m.iter().all(|x| l.tilt >= x.tilt);
             println!("{:<10} {:<40} {:<26} {tilts}  tense lowest {}  lax highest {}", format!("{} {}", words.join(""), place), vot, f0s, check(lowest), check(lax_top));
         }
+        // sung (Sing's scaled voice onset times): pop singing measures ㅂ 27.7, ㅍ 32.7, ㅃ 10.8 ms
+        // (이철희·한경훈 2020)
+        let [l, a, t] = ["바", "파", "빠"].map(|w| measure_sung(w, body, name, f0));
+        println!("바파빠 sung  lax {:.0} {} asp {:.0} {} tense {:.0} {}", l.vot, check((20.0..=35.0).contains(&l.vot)), a.vot, check((25.0..=40.0).contains(&a.vot) && a.vot > l.vot), t.vot, check(t.vot < l.vot));
     }
     println!("\n{} of {checks} checks met", checks - misses);
     Ok(())
@@ -210,5 +233,13 @@ mod tests {
         assert!(t.vot < l.vot && l.vot < a.vot, "{} {} {}", l.vot, a.vot, t.vot);
         assert!(t.tilt < l.tilt, "{} {}", l.tilt, t.tilt);
         assert!(l.f0 > 0.0 && t.f0 > l.f0);
+    }
+
+    #[test]
+    fn sung_stops_aspirate_briefly_and_keep_their_order() {
+        // pop singing: ㅂ 27.7, ㅍ 32.7, ㅃ 10.8 ms (이철희·한경훈 2020); at a 0 floor they all sat at ~41
+        let (body, name, f0) = VOICES[0];
+        let [l, a, t] = ["바", "파", "빠"].map(|w| measure_sung(w, body, name, f0));
+        assert!(t.vot < l.vot && l.vot < a.vot && a.vot < 36.0, "{} {} {}", l.vot, a.vot, t.vot);
     }
 }

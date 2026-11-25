@@ -62,7 +62,11 @@ A word-initial lax stop starts its vowel breathy and slack (`breathy` on an aspi
 0.1 and fold tension 0.3 from the end of the aspiration to 80 ms after), so its vowel is the
 breathiest of the three (H1-A3 22-25 dB female against 19 after an aspirated stop).
 
-Closure lasts longest for tense stops (123 ms), then aspirated (84), then lax (48), the 2026 notes' VCV means; ㅎ between vowels is brief (it is mostly dropped in real speech).
+Closure lasts longest for tense stops (120 ms here), then aspirated (85), then lax (50): the order Seoul speech has (137, 111, 77 over three positions, 강현숙·김태경 2020), at running-speech lengths; ㅎ between vowels is brief (it is mostly dropped in real speech).
+
+ㅅ is aspirated [sʰ]: the folds stay apart past its frication, so its vowel starts ~60 ms later (before [a]: 29-78 ms, Chang 2007; before [i], where it is [ɕ], about 7). ㅆ's frication is longer (160 ms against [s]'s ~105: 180-218 against 109-167, Chang 2007), and its vowel still starts ~35 ms after it where Seoul has 9-14 (closing the folds sooner made the male voice's onset aperiodic; see the `ponytail:` note in the planner).
+
+Sung, the stops aspirate far less: Sing scales a front end's `vot` by `sing::SUNG_VOT` (0.35), so lax and aspirated stops land at 22-27 and 32 ms, near pop vocalists' ㅂ 27.7 and ㅍ 32.7 (이철희·한경훈 2020); the tense ones stay at 19-21 against 10.8. `chimera diagnose korean` measures all of these.
 
 In speech the vowel after a tense or aspirated stop starts about 5 semitones above one after a lax stop (sung notes keep their melody). A short list of compounds and Sino-Korean words (솜이불 → [솜니불], 갈등 → [갈뜽]) is read from a respelling in `korean.rs`, since their ㄴ insertion and tensing need the word's parts.
 

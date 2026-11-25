@@ -332,7 +332,10 @@ pub fn plan_utterance(input: &[Segment], o: &PlanOptions) -> Plan {
         // nasality: the velum lowers in anticipation (into the preceding vowel, as in English) and
         // seals again by the end of the nasal; 0.45 cm² is ample for the murmur
         if def.nasal == Some(true) {
-            gestures.push(Gesture::new(t0 - 0.02, t1 - 0.02, 0.05, 0.03, 4.0, one(ArticKey::Velum, 0.45)).label("velum"));
+            // denasalized (Seoul ㄴ ㅁ phrase-initially, ~13 ms of murmur): the closure starts oral,
+            // a voiced stop's, and the velum lowers only for its last quarter
+            let from = if s.nasalized == Some(false) { t0 + 0.75 * dur } else { t0 - 0.02 };
+            gestures.push(Gesture::new(from, t1 - 0.02, 0.05, 0.03, 4.0, one(ArticKey::Velum, 0.45)).label("velum"));
         }
         // phonation
         let k2 = 1.0; // abduction is body-scaled in the voice
@@ -353,7 +356,9 @@ pub fn plan_utterance(input: &[Segment], o: &PlanOptions) -> Plan {
                 // that by the whole difference, so the voice onset time it asks for is what it gets
                 let past = match (aspirated, s.vot) {
                     (true, None) => DEFAULT_VOT / rate * 0.4, // as before, to the bit
-                    (true, Some(v)) => js_max(0.0, 0.4 * DEFAULT_VOT + v - DEFAULT_VOT) / rate,
+                    // a short `vot` (sung Korean, 28-33 ms) may let the folds close up to 20 ms
+                    // before the release: at 0 the render's floor was ~41 ms
+                    (true, Some(v)) => js_max(-0.02, 0.4 * DEFAULT_VOT + v - DEFAULT_VOT) / rate,
                     (false, None) => 0.012 * 0.4,
                     // an unaspirated stop's front end may shorten the gap the same way (Korean's tense stops)
                     (false, Some(v)) => js_max(0.0, 0.4 * 0.012 + v - 0.012) / rate,
@@ -361,7 +366,17 @@ pub fn plan_utterance(input: &[Segment], o: &PlanOptions) -> Plan {
                 let g = Gesture::new(t0 + 0.25 * dur, t1 + past, 0.035, if aspirated { 0.045 } else { 0.02 }, 6.0, one(ControlKey::ABDUCTION, if aspirated { 0.36 } else { 0.22 })).label("aspiration");
                 voiced_again = g.end();
                 gestures.push(g);
+            } else if s.aspirated == Some(true) && let Some(v) = s.vot {
+                // an aspirated fricative (Korean ㅅ [sʰ]): the folds stay apart past the frication,
+                // so the vowel starts in aspiration; the ramp out makes up ~15 ms of it
+                let g = Gesture::new(t0 - 0.015, t1 + js_max(0.005, v - 0.015) / rate, 0.03, 0.03, 6.0, one(ControlKey::ABDUCTION, 0.3)).label("aspiration");
+                voiced_again = g.end();
+                gestures.push(g);
             } else {
+                // ponytail: Korean ㅆ keeps this default and its vowel starts ~35 ms after the
+                // frication (Seoul: 9-14). Closing the folds sooner (ramp 12-20 ms, or before the
+                // frication ends) got it to 21-27 ms but left the male voice's first ~40 ms aperiodic
+                // (no pitch 25 ms in); fix the onset before shortening this
                 gestures.push(Gesture::new(t0 - 0.015, t1 + 0.005, 0.03, 0.03, 6.0, one(ControlKey::ABDUCTION, 0.3)).label("voiceless"));
             }
         } else if def.manner == Manner::Fricative {
@@ -471,15 +486,18 @@ pub fn plan_utterance(input: &[Segment], o: &PlanOptions) -> Plan {
             };
             target = f0 * decl * acc;
             // after Korean's tense and aspirated stops the vowel starts high, after a lax one low:
-            // ~4.9 semitones apart in Seoul speech (the 2026 notes, Beckman et al. 2014)
+            // ~4.9 semitones apart in Seoul speech (Beckman et al. 2014; read /pa/-/pʰa/, women: lax
+            // 187-204 Hz against aspirated 220-267, 김제홍 외 2020)
             let stop = [i.wrapping_sub(1), i.wrapping_sub(2)].into_iter().filter_map(|k| segs.get(k)).find(|c| !matches!(c.ipa, "j" | "w" | "ɥ" | "ɰ"));
             if let Some(st) = stop.filter(|c| c.vowel.is_none()) {
+                let fricative = st.def.is_some_and(|d| d.manner == Manner::Fricative);
                 let semitones = match (st.aspirated, st.vot) {
+                    // ㅆ: fortis like the tense stops, and high after it as they are; ㅅ, though
+                    // aspirated, is the reference (its onset F0 is not settled in the sources)
+                    _ if fricative => if st.fortis == Some(true) { 2.5 } else { 0.0 },
                     (Some(false), _) => 2.5,
                     (Some(true), Some(v)) if v > 0.05 => 2.5, // aspirated: longer than a lax stop's 45 ms
                     (Some(true), _) => -2.4,
-                    // ㅆ: fortis like the tense stops, and high after it as they are
-                    _ if st.fortis == Some(true) => 2.5,
                     _ => 0.0,
                 };
                 target *= (semitones / 12.0_f64).exp2();

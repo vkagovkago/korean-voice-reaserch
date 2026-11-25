@@ -190,6 +190,14 @@ impl EnglishG2P {
             let terminal = delim.is_empty() || delim.contains(['.', '!', '?']);
             let boundary = (terminal && english.last() == Some(&false)).then_some(intonation);
             korean::mark_accentual_phrases(&mut segs, &nuclei, self.korean.dialect, boundary);
+            // a Seoul phrase's first ㄴ or ㅁ is denasalized: ~13 ms of nasal murmur where North
+            // Gyeongsang keeps ~47 (Park, Jang, Kim & Cho 2025, KSSS 17(1)); the other regions unmeasured
+            if matches!(self.korean.dialect, Dialect::Seoul | Dialect::Central)
+                && english.first() == Some(&false)
+                && let Some(first) = segs.first_mut().filter(|s| matches!(s.ipa.as_str(), "n" | "m"))
+            {
+                first.nasalized = Some(false);
+            }
             let pause = if delim.contains(['.', '!', '?']) {
                 0.35
             } else if !delim.is_empty() {

@@ -47,7 +47,9 @@ pub struct Segment {
     /// decides it (Korean's lax stops aspirate briefly, its aspirated ones long); None: 50 ms
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub vot: Option<f64>,
-    /// a vowel said with the velum lowered (IPA combining tilde); None or false: oral
+    /// a vowel said with the velum lowered (IPA combining tilde); None or false: oral. On a nasal
+    /// consonant, false: denasalized, the velum lowering only late in the closure (Korean ㄴ ㅁ
+    /// phrase-initially)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub nasalized: Option<bool>,
     /// a consonant made with a second, palatal gesture: the tongue body raised and fronted toward

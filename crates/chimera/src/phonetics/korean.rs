@@ -412,7 +412,10 @@ fn join(a: &mut Block, b: &mut Block, dialect: Dialect) {
 /// An initial's sound, and its aspiration when the letter decides it (None: the planner's default).
 /// Korean's three stops, word-initially all voiceless, told apart by how long they aspirate:
 /// aspirated ㅋ ㅌ ㅍ ㅊ long, lax ㄱ ㄷ ㅂ ㅈ briefly, tense ㄲ ㄸ ㅃ ㅉ not at all (word-initial voice
-/// onset times of about 70, 57 and 24 ms in the render; modern Seoul speech measures aspirated 57-75 ms, lax 50-65, tense 16-24, the 2026 Korean phonetics notes). Between voiced sounds a lax stop is voiced.
+/// onset times of about 70, 57 and 21 ms in the render). Seoul speech: in 20s' conversation lax
+/// 55.5-66.2, aspirated 55.2-65.4, tense 15.6-16.2 (김진우 2021: lax and aspirated have merged, the
+/// following vowel's F0 tells them apart; see the planner); in read words lax 35-53, aspirated 75-95,
+/// tense 12-24 (Yang 1993). Between voiced sounds a lax stop is voiced.
 /// written 13 ms under the target: the render's voice onset lands about that much after the
 /// release than the value asks for (`chimera diagnose korean`: 45 → 57 ms lax, 70 → 83 aspirated)
 const ASPIRATED_VOT: f64 = 0.057;
@@ -420,6 +423,15 @@ const LAX_VOT: f64 = 0.045;
 /// a tense stop's release gap, written 5 ms under the planner's default unaspirated one: the render
 /// then lands at 20-23 ms, the middle of Seoul's 16-24 (`chimera diagnose korean`; 24-27 before)
 const TENSE_VOT: f64 = 0.007;
+/// ㅅ is aspirated [sʰ]: after its frication the folds stay apart into the vowel, about 69 ms before
+/// [a] and 7 before [i] (Yoon 2002, as cited by 김대일 2025); 29-78 ms against ㅆ's 9-14 (Chang 2007). Before [i] or [j] ㅅ is [ɕ], so it takes the short one.
+/// Written ~15 ms under the target, as the stops are: the voice comes back that much after the
+/// folds start to close (`chimera diagnose korean`: 60 → 74-76 ms)
+const SIOT_VOT: f64 = 0.045;
+const SIOT_VOT_FRONT: f64 = 0.005;
+/// ㅆ's frication is longer than ㅅ's: 180-218 ms against 109-167 before [a] (Chang 2007), 186-205
+/// against 97-141 in context (EPG, 김지영 외 2021): about 1.5 times ㅅ's (Klatt's [s] is 105)
+const SSANGSIOT_DUR: f64 = 0.16;
 
 /// An initial → its IPA, whether it aspirates, and for how long (s).
 fn onset_ipa(o: char, voiced_before: bool, front: bool, after_l: bool) -> (&'static str, Option<bool>, Option<f64>) {
@@ -445,8 +457,10 @@ fn onset_ipa(o: char, voiced_before: bool, front: bool, after_l: bool) -> (&'sta
         'ㅈ' => lax("dʑ", "tɕ"),
         'ㅊ' => aspirated("tɕ"),
         'ㅉ' => tense("tɕ"),
-        'ㅅ' | 'ㅆ' if front => ("ɕ", None, None),
-        'ㅅ' | 'ㅆ' => ("s", None, None),
+        'ㅅ' if front => ("ɕ", Some(true), Some(SIOT_VOT_FRONT)),
+        'ㅅ' => ("s", Some(true), Some(SIOT_VOT)),
+        'ㅆ' if front => ("ɕ", None, None),
+        'ㅆ' => ("s", None, None),
         'ㅎ' if voiced_before => ("ɦ", None, None),
         'ㅎ' => ("h", None, None),
         'ㄴ' => ("n", None, None),
@@ -501,7 +515,8 @@ pub(super) fn word_syllables_after(word: &str, o: &Options, tense_initial: bool)
 
 /// Words whose sounds depend on their parts, which a spelling alone doesn't give: compounds that
 /// insert ㄴ before 이 야 여 요 유 (솜이불 [솜니불]), and Sino-Korean words that tense after ㄹ or
-/// ㄴ (갈등 [갈뜽]); source: the 2026 phonological-process notes. Each respelling keeps the block count.
+/// ㄴ (갈등 [갈뜽]), as 표준 발음법 26-29항 have them, with the 표준국어대사전's pronunciation for
+/// the words no rule covers (효과 [효꽈]). Each respelling keeps the block count.
 const SPELLED_AS: &[(&str, &str)] = &[
     ("솜이불", "솜니불"), ("홑이불", "혼니불"), ("한여름", "한녀름"), ("늦여름", "는녀름"), ("색연필", "생년필"),
     ("물약", "물략"), ("식용유", "시굥뉴"), ("눈요기", "눈뇨기"), ("꽃잎", "꼰닙"), ("깻잎", "깬닙"),
@@ -563,11 +578,27 @@ fn syllables_of(word: &str, opts: &Options, tense_initial: bool) -> Vec<Syllable
                 } else {
                     ipa
                 };
-                // after a cluster's consonants a stop doesn't aspirate (as after English /s/)
-                let (aspirated, vot) = if clustered { (aspirated.map(|_| false), None) } else { (aspirated, vot) };
-                // closure lengths (VCV, 2026 Korean phonetics notes): tense 123 ms, aspirated 84, lax 48;
+                // after a cluster's consonants a stop doesn't aspirate (as after English /s/); ㅅ's
+                // aspiration is modern Seoul's, not read into the 15th century
+                let (aspirated, vot) = if clustered {
+                    (aspirated.map(|_| false), None)
+                } else if middle && o == 'ㅅ' {
+                    (None, None)
+                } else {
+                    (aspirated, vot)
+                };
+                // closure lengths, short as in running speech: Seoul reads tense 137 ms, aspirated 111,
+                // lax 77 over three positions (강현숙·김태경 2020), lax 43-66 between vowels;
                 // a voiced [ɦ] between vowels is mostly dropped in real speech (90%), so it is brief
                 let dur = match (aspirated, vot) {
+                    _ if o == 'ㅆ' => Some(SSANGSIOT_DUR),
+                    _ if o == 'ㅅ' => None,
+                    // a word-initial ㄹ (라디오) taps for 27 ms, a little longer than the 20 ms
+                    // flap between vowels (크로스비·서윤정 2025: 27.177 ms; said [l] instead, 53.66)
+                    _ if ipa == "ɾ" && i == 0 => Some(0.027),
+                    // a voiced ㅈ between vowels: the planner's fallback said it for ~113 ms, twice a
+                    // lax closure there (43-66 ms, 강현숙·김태경 2020; 58.9, 강희조·오미라 2024)
+                    _ if matches!(ipa, "dʑ" | "dz") => Some(0.07),
                     (Some(false), _) => Some(0.12),
                     (Some(true), Some(v)) if v == ASPIRATED_VOT => Some(0.085),
                     (Some(true), _) => Some(0.05),
@@ -577,7 +608,7 @@ fn syllables_of(word: &str, opts: &Options, tense_initial: bool) -> Vec<Syllable
                 // ㄲ ㄸ ㅃ ㅉ ㅆ stiffen the folds into the vowel (fortis)
                 let fortis = matches!(o, 'ㄲ' | 'ㄸ' | 'ㅃ' | 'ㅉ' | 'ㅆ').then_some(true);
                 // a voiceless lax stop starts its vowel breathy (Cho, Jun & Ladefoged 2002)
-                let breathy = (aspirated == Some(true) && vot == Some(LAX_VOT)).then_some(true);
+                let breathy = (matches!(o, 'ㄱ' | 'ㄷ' | 'ㅂ' | 'ㅈ') && vot == Some(LAX_VOT)).then_some(true);
                 Segment { aspirated, vot, dur: if clustered { None } else { dur }, fortis, breathy, ..Segment::new(ipa) }
             }))
             .collect();

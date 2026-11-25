@@ -83,17 +83,17 @@ fn hangul_sings_one_syllable_per_block_with_korean_sound_rules() {
     assert_eq!(sung("좋아"), "tɕʰ45o.a"); // ㅎ drops before a vowel; ㅈ is alveolo-palatal
     assert_eq!(sung("좋다"), "tɕʰ45o.tʰ57a"); // ㅎ + ㄷ aspirates
     assert_eq!(sung("국물"), "kʰ45uŋ.mul"); // nasalisation
-    assert_eq!(sung("신라"), "ɕil.la"); // ㄴ + ㄹ is [ll]; ㅅ before i is [ɕ]
+    assert_eq!(sung("신라"), "ɕʰ5il.la"); // ㄴ + ㄹ is [ll]; ㅅ before i is [ɕ], briefly aspirated
     assert_eq!(sung("없는"), "ʌm.nɯn"); // a two-letter coda simplifies, then nasalises
     assert_eq!(sung("학교"), "hak.k˭jo"); // tensing after an obstruent coda
-    assert_eq!(sung("사랑해"), "sa.ɾaŋ.ɦɛ");
+    assert_eq!(sung("사랑해"), "sʰ45a.ɾaŋ.ɦɛ");
     assert_eq!(sung("닭"), "tʰ45ak");
-    assert_eq!(sung("의사"), "ɰi.sa");
+    assert_eq!(sung("의사"), "ɰi.sʰ45a");
     // after a dropped ㅎ the consonant before it moves onto the silent ㅇ
-    assert_eq!(sung("싫어"), "ɕi.ɾʌ"); // [시러]
+    assert_eq!(sung("싫어"), "ɕʰ5i.ɾʌ"); // [시러]
     assert_eq!(sung("많아"), "ma.na"); // [마나]
     assert_eq!(sung("괜찮아"), "kʰ45wɛn.tɕʰ57a.na"); // [괜차나]
-    assert_eq!(sung("싫니"), "ɕil.li"); // ㅀ before ㄴ: [실리]
+    assert_eq!(sung("싫니"), "ɕʰ5il.li"); // ㅀ before ㄴ: [실리]
     assert_eq!(sung("않는"), "an.nɯn"); // ㄶ before ㄴ: [안는]
     // ㄷ ㅌ before 이 palatalise
     assert_eq!(sung("같이"), "kʰ45a.tɕʰ57i"); // [가치]
@@ -155,17 +155,37 @@ fn hand_written_syllables_may_leave_out_word_and_phrase_ends() {
 
 #[test]
 fn korean_stops_close_for_tense_longest_lax_shortest() {
-    // 2026 notes: closure tense 123 ms > aspirated 84 > lax 48 (VCV); ㅎ between vowels is brief
+    // closure tense 137 ms > aspirated 111 > lax 77 in Seoul (강현숙·김태경 2020); ㅎ between vowels is brief
     let dur = |t: &str| lyrics_to_syllables(t, &word)[0].onset[0].dur.unwrap();
     assert!(dur("뿔") > dur("풀") && dur("풀") > dur("불"));
     assert!(lyrics_to_syllables("아하", &word)[1].onset[0].dur.unwrap() < 0.06);
 }
 
 #[test]
+fn korean_siot_is_aspirated_and_ssangsiot_is_longer() {
+    // ㅅ [sʰ] aspirates into its vowel (long before [a], brief as [ɕ] before [i]); ㅆ doesn't, its
+    // frication is longer, and it alone is fortis (Chang 2007)
+    let onset = |t: &str| lyrics_to_syllables(t, &word)[0].onset[0].clone();
+    let (sa, si, ssa) = (onset("사"), onset("시"), onset("싸"));
+    assert_eq!((sa.aspirated, si.aspirated, ssa.aspirated), (Some(true), Some(true), None));
+    assert!(sa.vot.unwrap() > 0.03 && si.vot.unwrap() < 0.015, "{:?} {:?}", sa.vot, si.vot);
+    assert!(ssa.dur.unwrap() > 0.14 && sa.dur.is_none());
+    assert_eq!((sa.fortis, ssa.fortis), (None, Some(true)));
+}
+
+#[test]
+fn korean_word_initial_l_taps_longer_than_between_vowels() {
+    // 크로스비·서윤정 2025: a word-initial tap is 27 ms; between vowels the planner's 20 ms flap
+    let syls = lyrics_to_syllables("라라", &word);
+    assert_eq!(syls[0].onset[0].dur, Some(0.027));
+    assert_eq!(syls[1].onset[0].dur, None);
+}
+
+#[test]
 fn vowel_pitch_after_korean_stops_is_high_for_tense_and_aspirated_low_for_lax() {
     use chimera::phonetics::planner::{PlanOptions, plan_utterance};
     use chimera::control::score::ControlKey;
-    // 2026 notes: the vowel after 뿔/풀 starts ~5 semitones above the one after 불 (speech, no melody)
+    // the vowel after 뿔/풀 starts ~5 semitones above the one after 불 (Beckman et al. 2014; speech, no melody)
     let pitch = |text: &str| {
         let segs: Vec<Segment> = lyrics_to_syllables(text, &word).iter().flat_map(|s| s.onset.iter().cloned().chain([Segment::new(&s.nucleus.ipa)]).chain(s.coda.iter().cloned())).collect();
         let plan = plan_utterance(&segs, &PlanOptions::default());
@@ -178,7 +198,7 @@ fn vowel_pitch_after_korean_stops_is_high_for_tense_and_aspirated_low_for_lax() 
 #[test]
 fn korean_compounds_and_sino_korean_words_read_from_their_parts() {
     // ㄴ insertion and tensing need the word's parts: a short list, the letters stay as written
-    assert_eq!(sung("솜이불"), "som.ni.bul");
+    assert_eq!(sung("솜이불"), "sʰ45om.ni.bul");
     let g = lyrics_to_syllables("갈등", &word);
     assert_eq!(g.iter().map(|s| s.text.as_str()).collect::<Vec<_>>(), ["갈", "등"]);
     assert_eq!(g[1].onset[0].aspirated, Some(false));
@@ -207,7 +227,7 @@ fn old_hangul_reads_as_conjoining_jamo_with_its_archaic_letters() {
     use chimera::phonetics::korean::{ARAE_A, Options, word_syllables_with};
     // ᄒᆞᆫ 'one', ᄆᆞᅀᆞᆷ 'heart', ᅌᅵ, ᄫᅡ, and ㆆ as an initial and a final; ㆍ by its first hypothesis
     assert_eq!(sung("ᄒᆞᆫ ᄆᆞᅀᆞᆷ"), "hʌn.mʌ.zʌm");
-    assert_eq!(sung("ᅌᅵ ᄫᅡ ᅙᅡ 사ᇹ"), "ŋi.βa.ʔa.saʔ");
+    assert_eq!(sung("ᅌᅵ ᄫᅡ ᅙᅡ 사ᇹ"), "ŋi.βa.ʔa.sʰ45aʔ");
     // a final ㅿ moves onto a vowel after it and is [z]; ㆎ is ㆍ with an offglide
     assert_eq!(sung("바ᇫ이"), "pʰ45a.zi");
     assert_eq!(sung("ᄫᆡ"), "βʌj"); // ㆎ: ㆍ with [j] after it
