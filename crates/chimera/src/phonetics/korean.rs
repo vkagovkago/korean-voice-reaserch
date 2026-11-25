@@ -422,6 +422,21 @@ fn join(a: &mut Block, b: &mut Block, dialect: Dialect) {
 /// release than the value asks for (`chimera diagnose korean`: 45 → 57 ms lax, 70 → 83 aspirated)
 const ASPIRATED_VOT: f64 = 0.057;
 const LAX_VOT: f64 = 0.045;
+
+/// A reading's lax and aspirated voice onset times (written, as above). Where the folds' pitch
+/// carries lexical tone or accent, lax and aspirated stops keep apart by VOT instead of merging:
+/// - Gyeongsang: lax 38, aspirated 104 ms against Seoul's 64 and 80 (South Gyeongsang men,
+///   이현정·Jongman 2012). North Gyeongsang speakers born after 1990 are merging (lax 66.58-71.34,
+///   서민정 2026); the profile is the conservative, pitch-accent one.
+/// - the north (Hamgyong, Pyongan): lax 21.9, aspirated 81.1 ms (34 North Korean speakers, Jung,
+///   Oh & Han 2025; Yanbian keeps them apart too, 오미라·양휘 2013).
+fn stop_vots(dialect: Dialect) -> (f64, f64) {
+    match dialect {
+        Dialect::Gyeongsang => (0.026, 0.091),
+        Dialect::Northeast | Dialect::Northwest => (0.009, 0.068),
+        _ => (LAX_VOT, ASPIRATED_VOT),
+    }
+}
 /// a tense stop's release gap, written 5 ms under the planner's default unaspirated one: the render
 /// then lands at 20-23 ms, the middle of Seoul's 16-24 (`chimera diagnose korean`; 24-27 before)
 const TENSE_VOT: f64 = 0.007;
@@ -436,15 +451,15 @@ const SIOT_VOT_FRONT: f64 = 0.005;
 const SSANGSIOT_DUR: f64 = 0.16;
 
 /// An initial → its IPA, whether it aspirates, and for how long (s).
-fn onset_ipa(o: char, voiced_before: bool, front: bool, after_l: bool) -> (&'static str, Option<bool>, Option<f64>) {
+fn onset_ipa(o: char, voiced_before: bool, front: bool, after_l: bool, (lax_vot, aspirated_vot): (f64, f64)) -> (&'static str, Option<bool>, Option<f64>) {
     let lax = |voiced: &'static str, voiceless: &'static str| {
         if voiced_before {
             (voiced, None, None)
         } else {
-            (voiceless, Some(true), Some(LAX_VOT))
+            (voiceless, Some(true), Some(lax_vot))
         }
     };
-    let aspirated = |ipa: &'static str| (ipa, Some(true), Some(ASPIRATED_VOT));
+    let aspirated = |ipa: &'static str| (ipa, Some(true), Some(aspirated_vot));
     let tense = |ipa: &'static str| (ipa, Some(false), Some(TENSE_VOT));
     match o {
         'ㄱ' => lax("g", "k"),
@@ -570,7 +585,7 @@ fn syllables_of(word: &str, opts: &Options, tense_initial: bool) -> Vec<Syllable
         let mut onset: Vec<Segment> = pre
             .chain(b.onset.map(|o| {
                 let o = if gyeongsang && o == 'ㅆ' { 'ㅅ' } else { o };
-                let (ipa, aspirated, vot) = onset_ipa(o, voiced_before && !clustered, front, prev_coda == Some('ㄹ'));
+                let (ipa, aspirated, vot) = onset_ipa(o, voiced_before && !clustered, front, prev_coda == Some('ㄹ'), stop_vots(opts.dialect));
                 // Northern Hamgyong and the northwestern profile use alveolar affricates (Schertz et
                 // al. 2015), as the 15th century's dental ones were
                 let ipa = if northeast || opts.dialect == Dialect::Northwest || middle {
@@ -604,7 +619,7 @@ fn syllables_of(word: &str, opts: &Options, tense_initial: bool) -> Vec<Syllable
                     // lax closure there (43-66 ms, 강현숙·김태경 2020; 58.9, 강희조·오미라 2024)
                     _ if matches!(ipa, "dʑ" | "dz") => Some(0.07),
                     (Some(false), _) => Some(0.12),
-                    (Some(true), Some(v)) if v == ASPIRATED_VOT => Some(0.085),
+                    (Some(true), _) if matches!(o, 'ㅋ' | 'ㅌ' | 'ㅍ' | 'ㅊ') => Some(0.085),
                     (Some(true), _) => Some(0.05),
                     _ if ipa == "ɦ" => Some(0.045),
                     _ => None,
@@ -612,7 +627,7 @@ fn syllables_of(word: &str, opts: &Options, tense_initial: bool) -> Vec<Syllable
                 // ㄲ ㄸ ㅃ ㅉ ㅆ stiffen the folds into the vowel (fortis)
                 let fortis = matches!(o, 'ㄲ' | 'ㄸ' | 'ㅃ' | 'ㅉ' | 'ㅆ').then_some(true);
                 // a voiceless lax stop starts its vowel breathy (Cho, Jun & Ladefoged 2002)
-                let breathy = (matches!(o, 'ㄱ' | 'ㄷ' | 'ㅂ' | 'ㅈ') && vot == Some(LAX_VOT)).then_some(true);
+                let breathy = (matches!(o, 'ㄱ' | 'ㄷ' | 'ㅂ' | 'ㅈ') && aspirated == Some(true)).then_some(true);
                 Segment { aspirated, vot, dur: if clustered { None } else { dur }, fortis, breathy, ..Segment::new(ipa) }
             }))
             .collect();

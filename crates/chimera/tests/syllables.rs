@@ -496,3 +496,23 @@ fn kyungsang_accent_keeps_a_double_high_and_places_the_late_low() {
     assert_eq!(tones("가나다́"), [Some(Low), Some(Low), Some(Accent)]);
     assert_eq!(tones("가나다"), [None, None, None]);
 }
+
+#[test]
+fn pitch_accent_and_northern_readings_keep_lax_and_aspirated_stops_apart_by_vot() {
+    // Seoul's lax and aspirated stops have nearly merged in VOT (F0 tells them apart); South
+    // Gyeongsang keeps 38 against 104 ms (이현정·Jongman 2012), the north 21.9 against 81.1 (Jung,
+    // Oh & Han 2025)
+    use chimera::phonetics::korean::{Dialect, Options, word_syllables_with};
+    let gap = |d| {
+        let o = Options { dialect: d, ..Default::default() };
+        let vot = |w| word_syllables_with(w, &o)[0].onset[0].vot.unwrap();
+        (vot("바"), vot("파"))
+    };
+    let ((sl, sa), (gl, ga), (nl, na)) = (gap(Dialect::Seoul), gap(Dialect::Gyeongsang), gap(Dialect::Northeast));
+    assert!(ga - gl > 3.0 * (sa - sl) && na - nl > 3.0 * (sa - sl));
+    assert!(gl < sl && nl < gl && ga > sa);
+    assert_eq!(gap(Dialect::Northwest), gap(Dialect::Northeast));
+    // the lax stop still starts its vowel breathy, whatever its VOT
+    let o = Options { dialect: Dialect::Gyeongsang, ..Default::default() };
+    assert_eq!(word_syllables_with("바", &o)[0].onset[0].breathy, Some(true));
+}

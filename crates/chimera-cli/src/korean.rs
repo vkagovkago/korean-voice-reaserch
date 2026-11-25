@@ -213,6 +213,13 @@ pub fn run(ctx: &Ctx, a: &[String]) -> Result<(), String> {
             let lax_top = m.iter().all(|x| l.tilt >= x.tilt);
             println!("{:<10} {:<40} {:<26} {tilts}  tense lowest {}  lax highest {}", format!("{} {}", words.join(""), place), vot, f0s, check(lowest), check(lax_top));
         }
+        // readings whose stops keep apart by VOT: Gyeongsang lax 38, aspirated 104 (이현정·Jongman
+        // 2012); the north lax 21.9, aspirated 81.1 (Jung, Oh & Han 2025)
+        for (dialect, label, lax, asp) in [(Dialect::Gyeongsang, "gyeongsang", 30.0..=46.0, 95.0..=113.0), (Dialect::Northeast, "northeast", 15.0..=29.0, 73.0..=89.0)] {
+            let o = Options { dialect, ..Default::default() };
+            let [l, a] = ["바", "파"].map(|w| measure_syllables(word_syllables_with(w, &o), body, name, f0));
+            println!("바파 {label:<10} lax {:.0} {} asp {:.0} {}", l.vot, check(lax.contains(&l.vot)), a.vot, check(asp.contains(&a.vot)));
+        }
         // sung (Sing's scaled voice onset times): pop singing measures ㅂ 27.7, ㅍ 32.7, ㅃ 10.8 ms
         // (이철희·한경훈 2020)
         let [l, a, t] = ["바", "파", "빠"].map(|w| measure_sung(w, body, name, f0));
