@@ -79,18 +79,18 @@ fn sung(text: &str) -> String {
 #[test]
 fn hangul_sings_one_syllable_per_block_with_korean_sound_rules() {
     assert_eq!(sung("빵야"), "p˭aŋ.ja"); // ㅇ coda stays; tense ㅃ is voiceless and unaspirated
-    assert_eq!(sung("먹어"), "mʌ.gʌ"); // a coda moves onto a silent ㅇ, voiced between vowels
+    assert_eq!(sung("먹어"), "mʊ.gʊ"); // a coda moves onto a silent ㅇ, voiced between vowels
     assert_eq!(sung("좋아"), "tɕʰ45o.a"); // ㅎ drops before a vowel; ㅈ is alveolo-palatal
     assert_eq!(sung("좋다"), "tɕʰ45o.tʰ57a"); // ㅎ + ㄷ aspirates
     assert_eq!(sung("국물"), "kʰ45uŋ.mul"); // nasalisation
     assert_eq!(sung("신라"), "ɕʰ5il.la"); // ㄴ + ㄹ is [ll]; ㅅ before i is [ɕ], briefly aspirated
-    assert_eq!(sung("없는"), "ʌm.nɯn"); // a two-letter coda simplifies, then nasalises
+    assert_eq!(sung("없는"), "ʊm.nɯn"); // a two-letter coda simplifies, then nasalises
     assert_eq!(sung("학교"), "hak.k˭jo"); // tensing after an obstruent coda
     assert_eq!(sung("사랑해"), "sʰ45a.ɾaŋ.ɦɛ");
     assert_eq!(sung("닭"), "tʰ45ak");
     assert_eq!(sung("의사"), "ɰi.sʰ45a");
     // after a dropped ㅎ the consonant before it moves onto the silent ㅇ
-    assert_eq!(sung("싫어"), "ɕʰ5i.ɾʌ"); // [시러]
+    assert_eq!(sung("싫어"), "ɕʰ5i.ɾʊ"); // [시러]
     assert_eq!(sung("많아"), "ma.na"); // [마나]
     assert_eq!(sung("괜찮아"), "kʰ45wɛn.tɕʰ57a.na"); // [괜차나]
     assert_eq!(sung("싫니"), "ɕʰ5il.li"); // ㅀ before ㄴ: [실리]
@@ -251,7 +251,7 @@ fn gyeongsang_merges_eo_and_eu_says_ss_as_s_and_raises_marked_syllables() {
     let vowels = |w: &str, o: &Options| read(w, o).iter().map(|s| s.nucleus.ipa.clone()).collect::<Vec<_>>().join(".");
     // ㅓ ㅡ (and ㅕ) are one vowel [ɤ] (older Gyeongnam speakers, 이향원 외 2017); Seoul keeps them apart
     assert_eq!(vowels("거그겨", &gs), "ɤ.ɤ.ɤ");
-    assert_eq!(vowels("거그", &Options::default()), "ʌ.ɯ");
+    assert_eq!(vowels("거그", &Options::default()), "ʊ.ɯ");
     // 쌀 is said as 살: no fortis
     assert_eq!(read("쌀", &gs)[0].onset[0], read("살", &gs)[0].onset[0]);
     assert_eq!(read("쌀", &Options::default())[0].onset[0].fortis, Some(true));
@@ -315,7 +315,7 @@ fn sung_lyrics_read_hangul_in_the_dialect() {
     let gs = Options { dialect: Dialect::Gyeongsang, ..Default::default() };
     let vowels = |o: Options| lyrics_to_syllables_in("거그 쌀", &word, o).iter().map(|s| s.nucleus.ipa.clone()).collect::<Vec<_>>().join(".");
     assert_eq!(vowels(gs), "ɤ.ɤ.a");
-    assert_eq!(vowels(Options::default()), "ʌ.ɯ.a");
+    assert_eq!(vowels(Options::default()), "ʊ.ɯ.a");
     assert_eq!(lyrics_to_syllables_in("쌀", &word, gs)[0].onset[0].fortis, None);
 }
 
@@ -369,7 +369,7 @@ fn jeju_reads_arae_a_as_a_mid_back_rounded_vowel() {
     use chimera::phonetics::korean::{Dialect, Options};
     let jeju = Options { dialect: Dialect::Jeju, ..Default::default() };
     assert_eq!(read_as("ᄆᆞᆯ", jeju), "mɔl");
-    assert_eq!(read_as("ᄋᆢ덥", jeju), "jɔ.dʌp");
+    assert_eq!(read_as("ᄋᆢ덥", jeju), "jɔ.dʊp");
     // the rest is modern
     assert_eq!(read_as("말", jeju), "mal");
 }

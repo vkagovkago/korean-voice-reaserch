@@ -111,13 +111,6 @@ fn reading_vowel(letter: char, o: &Options) -> Option<(&'static str, &'static st
         (Central, 'ㅒ') => ("j", "e", false),
         (Central, 'ㅙ') => ("w", "e", false),
         (Southwest, 'ㅢ') => ("", "ɯ", false),
-        // Yanbian (Hamgyong-based) ㅓ sits above ㅗ, the reverse of Seoul: men 422/1103 against
-        // 481/780 Hz, women 496/1124 against 572/934 (28 speakers aged 20-80, 許秦, Tables 4-1/4-2;
-        // Hamgyong speakers place the two the same). [ʊ]'s target (467/1126, 516/1229) is the
-        // nearest calibrated vowel; ㅗ stays [o]
-        (Northeast, 'ㅓ') => ("", "ʊ", false),
-        (Northeast, 'ㅕ') => ("j", "ʊ", false),
-        (Northeast, 'ㅝ') => ("w", "ʊ", false),
         (Northeast, 'ㅢ') => ("", "i", false),
         (Gyeongsang, 'ㅓ' | 'ㅡ') => ("", "ɤ", false),
         (Gyeongsang, 'ㅕ') => ("j", "ɤ", false),
@@ -137,8 +130,8 @@ pub struct Hypothesis {
 }
 
 /// ㆍ (arae-a), the one Old Hangul letter read here whose value is in real dispute; the first is
-/// the default. A render of each is a demonstration of the hypothesis, not evidence for it. Under
-/// the first, ㆍ sounds as this front end's modern ㅓ does.
+/// the default. A render of each is a demonstration of the hypothesis, not evidence for it. The
+/// first is the textbook value of modern ㅓ (which this front end now says higher, as [ʊ]).
 pub const ARAE_A: [Hypothesis; 3] = [
     Hypothesis { ipa: "ʌ", label: "back unrounded, low-mid", source: Some("이기문 (1972), p. 137, as cited by Ko (2012), §3.2.1.1") },
     Hypothesis { ipa: "ɐ", label: "central, near-low (comparison target)", source: None },
@@ -246,9 +239,12 @@ const INITIALS: [char; 19] = ['ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', '
 
 /// Medial vowels in Unicode order as (glide, vowel).
 const MEDIALS: [(&str, &str); 21] = [
-    ("", "a"), ("", "ɛ"), ("j", "a"), ("j", "ɛ"), ("", "ʌ"), ("", "e"), ("j", "ʌ"), ("j", "e"), // ㅏㅐㅑㅒㅓㅔㅕㅖ
+    // ㅓ is [ʊ]'s target, not the textbook [ʌ]: Seoul speakers say it at 498/1090 (young) and
+    // 446/1063 Hz (older) men, 586/1231 and 561/1269 women (64 speakers, 이향원·신우봉·신지영 2017,
+    // Table 4); [ʌ] rendered 579/1210 and 777/1500, [ʊ] renders 419/1028 and 575/1267
+    ("", "a"), ("", "ɛ"), ("j", "a"), ("j", "ɛ"), ("", "ʊ"), ("", "e"), ("j", "ʊ"), ("j", "e"), // ㅏㅐㅑㅒㅓㅔㅕㅖ
     ("", "o"), ("w", "a"), ("w", "ɛ"), ("w", "e"), ("j", "o"), // ㅗㅘㅙㅚㅛ
-    ("", "u"), ("w", "ʌ"), ("w", "e"), ("w", "i"), ("j", "u"), // ㅜㅝㅞㅟㅠ
+    ("", "u"), ("w", "ʊ"), ("w", "e"), ("w", "i"), ("j", "u"), // ㅜㅝㅞㅟㅠ
     ("", "ɯ"), ("ɰ", "i"), ("", "i"), // ㅡㅢㅣ
 ];
 

@@ -64,6 +64,8 @@ breathiest of the three (H1-A3 22-25 dB female against 19 after an aspirated sto
 
 Closure lasts longest for tense stops (120 ms here), then aspirated (85), then lax (50): the order Seoul speech has (137, 111, 77 over three positions, 강현숙·김태경 2020), at running-speech lengths; ㅎ between vowels is brief (it is mostly dropped in real speech).
 
+ㅓ is said with [ʊ]'s target rather than the textbook [ʌ]: Seoul speakers put it at 446-498 / 1063-1090 Hz (men) and 561-586 / 1231-1269 (women; 64 speakers, 이향원·신우봉·신지영 2017), where [ʌ] rendered 579/1210 and 777/1500; [ʊ] renders 419/1028 and 575/1267. Old Hangul's ㆍ keeps [ʌ] as its first hypothesis.
+
 ㅅ is aspirated [sʰ]: the folds stay apart past its frication, so its vowel starts ~60 ms later (before [a]: 29-78 ms, Chang 2007; before [i], where it is [ɕ], about 7). ㅆ's frication is longer (160 ms against [s]'s ~105: 180-218 against 109-167, Chang 2007), and its folds open less (abduction 0.22, as the tense stops') and close as the frication ends, so its vowel starts ~19 ms after it (Seoul 9-14). Its fold tension is 0.6, not the stops' 0.9: at 0.9 a male voice starting that soon is aperiodic for 30-40 ms.
 
 Sung, the stops aspirate far less: Sing scales a front end's `vot` by `sing::SUNG_VOT` (0.35), so lax and aspirated stops land at 22-27 and 32 ms, near pop vocalists' ㅂ 27.7 and ㅍ 32.7 (이철희·한경훈 2020); the tense ones stay at 19-21 against 10.8. `chimera diagnose korean` measures all of these.
@@ -150,8 +152,8 @@ entered and depend on the user for regional vocabulary, endings, and lexical ton
   North Korean speakers 21.9 and 81.1, Jung, Oh & Han 2025). In the northeast the stops barely
   move the vowel's pitch (`Segment::onset_f0`: lax -0.7, aspirated +0.7, tense -0.35 semitones;
   young Yanbian speakers, 오미라·양휘 2013), where Seoul's differ by about 5.
-- **northeast**: takes northern Hamgyong alveolar affricates and ㅢ as [i]. ㅓ is [ʊ], above ㅗ as
-  Yanbian speakers say it (men 422/1103 against 481/780 Hz; 許秦). An acute or one
+- **northeast**: takes northern Hamgyong alveolar affricates and ㅢ as [i]. Its ㅓ sits above ㅗ as
+  Yanbian speakers say it (men 422/1103 against 481/780 Hz; 許秦), which the modern [ʊ] gives. An acute or one
   dot marks high (가〮), and two dots mark a long rise (가〯), following the three-way inventories
   described for Gilju, Seongjin and Dancheon. Tone marks are input annotations.
   [Northeastern dialect](https://encykorea.aks.ac.kr/Article/E0016526).

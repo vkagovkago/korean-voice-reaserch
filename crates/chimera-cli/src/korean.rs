@@ -264,6 +264,14 @@ pub fn run(ctx: &Ctx, a: &[String]) -> Result<(), String> {
             println!("허 gyeongsang ㅓ/ㅡ F1 {f1:.0} {} F2 {f2:.0} {}", check(r1.contains(&f1)), check(r2.contains(&f2)));
         }
         {
+            // Seoul's ㅓ: men 498/1090 (young), 446/1063 (older); women 586/1231, 561/1269 Hz
+            // (이향원·신우봉·신지영 2017, Table 4): the groups' mean +-1 SD
+            let (plan, out, _) = say(word_syllables("허"), body, name, f0);
+            let (f1, f2) = first_vowel_formants(&plan, &out);
+            let (r1, r2) = if name == "male" { (411.0..=533.0, 896.0..=1258.0) } else { (463.0..=685.0, 1015.0..=1485.0) };
+            println!("허 seoul ㅓ F1 {f1:.0} {} F2 {f2:.0} {}", check(r1.contains(&f1)), check(r2.contains(&f2)));
+        }
+        {
             // Yanbian's ㅓ above its ㅗ: men 422/1103 and 481/780 Hz, women 496/1124 and 572/934 (許秦)
             let o = Options { dialect: Dialect::Northeast, ..Default::default() };
             let [eo, oo] = ["허", "호"].map(|w| {
