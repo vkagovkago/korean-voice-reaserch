@@ -515,4 +515,7 @@ fn pitch_accent_and_northern_readings_keep_lax_and_aspirated_stops_apart_by_vot(
     // the lax stop still starts its vowel breathy, whatever its VOT
     let o = Options { dialect: Dialect::Gyeongsang, ..Default::default() };
     assert_eq!(word_syllables_with("바", &o)[0].onset[0].breathy, Some(true));
+    // Gyeongsang's ㅅ aspirates less than Seoul's (Busan 38 against 48 ms, Holliday 2012)
+    let siot = |d| word_syllables_with("사", &Options { dialect: d, ..Default::default() })[0].onset[0].vot.unwrap();
+    assert!(siot(Dialect::Gyeongsang) < 0.85 * siot(Dialect::Seoul));
 }

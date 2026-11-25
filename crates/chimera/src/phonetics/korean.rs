@@ -423,18 +423,20 @@ fn join(a: &mut Block, b: &mut Block, dialect: Dialect) {
 const ASPIRATED_VOT: f64 = 0.057;
 const LAX_VOT: f64 = 0.045;
 
-/// A reading's lax and aspirated voice onset times (written, as above). Where the folds' pitch
+/// A reading's lax and aspirated voice onset times, and ㅅ's aspiration (written, as above). Where the folds' pitch
 /// carries lexical tone or accent, lax and aspirated stops keep apart by VOT instead of merging:
 /// - Gyeongsang: lax 38, aspirated 104 ms against Seoul's 64 and 80 (South Gyeongsang men,
 ///   이현정·Jongman 2012). North Gyeongsang speakers born after 1990 are merging (lax 66.58-71.34,
 ///   서민정 2026); the profile is the conservative, pitch-accent one.
 /// - the north (Hamgyong, Pyongan): lax 21.9, aspirated 81.1 ms (34 North Korean speakers, Jung,
 ///   Oh & Han 2025; Yanbian keeps them apart too, 오미라·양휘 2013).
-fn stop_vots(dialect: Dialect) -> (f64, f64) {
+/// - Gyeongsang's ㅅ aspirates less: 38 ms before a non-high vowel in Busan against Seoul's 48 in
+///   the same study (Holliday 2012), so 0.79 of Seoul's here (rendered ~47 against 60).
+fn stop_vots(dialect: Dialect) -> (f64, f64, f64) {
     match dialect {
-        Dialect::Gyeongsang => (0.026, 0.091),
-        Dialect::Northeast | Dialect::Northwest => (0.009, 0.068),
-        _ => (LAX_VOT, ASPIRATED_VOT),
+        Dialect::Gyeongsang => (0.026, 0.091, 0.033),
+        Dialect::Northeast | Dialect::Northwest => (0.009, 0.068, SIOT_VOT),
+        _ => (LAX_VOT, ASPIRATED_VOT, SIOT_VOT),
     }
 }
 /// a tense stop's release gap, written 5 ms under the planner's default unaspirated one: the render
@@ -451,7 +453,7 @@ const SIOT_VOT_FRONT: f64 = 0.005;
 const SSANGSIOT_DUR: f64 = 0.16;
 
 /// An initial → its IPA, whether it aspirates, and for how long (s).
-fn onset_ipa(o: char, voiced_before: bool, front: bool, after_l: bool, (lax_vot, aspirated_vot): (f64, f64)) -> (&'static str, Option<bool>, Option<f64>) {
+fn onset_ipa(o: char, voiced_before: bool, front: bool, after_l: bool, (lax_vot, aspirated_vot, siot_vot): (f64, f64, f64)) -> (&'static str, Option<bool>, Option<f64>) {
     let lax = |voiced: &'static str, voiceless: &'static str| {
         if voiced_before {
             (voiced, None, None)
@@ -475,7 +477,7 @@ fn onset_ipa(o: char, voiced_before: bool, front: bool, after_l: bool, (lax_vot,
         'ㅊ' => aspirated("tɕ"),
         'ㅉ' => tense("tɕ"),
         'ㅅ' if front => ("ɕ", Some(true), Some(SIOT_VOT_FRONT)),
-        'ㅅ' => ("s", Some(true), Some(SIOT_VOT)),
+        'ㅅ' => ("s", Some(true), Some(siot_vot)),
         'ㅆ' if front => ("ɕ", None, None),
         'ㅆ' => ("s", None, None),
         'ㅎ' if voiced_before => ("ɦ", None, None),
