@@ -685,13 +685,24 @@ fn shorten_hl_onset(word: &mut [Syllable]) {
 
 /// A marked northern Kyungsang accent has a high peak and a later low (Jun et al. 2006).
 /// The input supplies the accent. Short words may end before the trailing low is reached.
+/// The syllable right after the last high steps down (PostAccent), and an accent after low
+/// syllables rises from low and higher (LowAccent): the word ranges Lee & Jongman (2015) measured,
+/// HL 3.29, HH 3.59, LH 6.91 semitones.
 fn mark_kyungsang_accent(word: &mut [Syllable]) {
     let Some(first) = word.iter().position(|s| s.nucleus.stress == Some(1)) else { return };
     let mut last_high = None;
     for (i, syllable) in word.iter_mut().enumerate() {
         if syllable.nucleus.stress == Some(1) {
-            syllable.nucleus.tone = Some(if last_high.is_some_and(|j| j + 1 == i) { Tone::AccentHigh } else { Tone::Accent });
+            syllable.nucleus.tone = Some(if last_high.is_some_and(|j| j + 1 == i) {
+                Tone::AccentHigh
+            } else if i > 0 && last_high.is_none() {
+                Tone::LowAccent
+            } else {
+                Tone::Accent
+            });
             last_high = Some(i);
+        } else if last_high.is_some_and(|j| i == j + 1) {
+            syllable.nucleus.tone = Some(Tone::PostAccent);
         } else if i < first || last_high.is_some_and(|j| i >= j + 2) {
             syllable.nucleus.tone = Some(Tone::Low);
         }

@@ -132,6 +132,9 @@ entered and depend on the user for regional vocabulary, endings, and lexical ton
   An acute marks a high syllable (가́지). Pitch rises within the marked vowel, stays high
   on adjacent marked syllables, then targets a low two syllables after the last marked
   vowel if the word is long enough. Focus and age-specific timing are still unmodelled.
+  The syllable after the last high steps down 3.29 semitones (not to low), and an accent after
+  low syllables rises 6.91 from low: older South Kyungsang word ranges HL 3.29, HH 3.59, LH 6.91
+  (Lee & Jongman 2015); rendered 3.2-3.4, 3.6-3.8 and 7.2.
   Lax and aspirated stops keep apart by VOT (rendered 33-38 against 104 ms; South Gyeongsang
   men 38 and 104, 이현정·Jongman 2012), and a phrase's first ㄴ ㅁ keeps its nasality (Park, Jang,
   Kim & Cho 2025).

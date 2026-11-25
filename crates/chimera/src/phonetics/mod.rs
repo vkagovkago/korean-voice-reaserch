@@ -81,6 +81,11 @@ pub enum Tone {
     Falling,
     Accent,
     AccentHigh,
+    /// a pitch accent after low syllables (Gyeongsang LH): rises from low, higher than a
+    /// word-initial accent
+    LowAccent,
+    /// the syllable right after a word's last high (Gyeongsang HL): a step down, not to low
+    PostAccent,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]

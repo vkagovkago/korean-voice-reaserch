@@ -455,6 +455,13 @@ pub fn plan_utterance(input: &[Segment], o: &PlanOptions) -> Plan {
             let low = f0 * 0.9;
             let high = f0 * 1.15;
             let accent_high = f0 * 1.21;
+            // Gyeongsang word ranges (older South Kyungsang, Lee & Jongman 2015, Table 5): HL 3.29,
+            // HH 3.59 and LH 6.91 semitones from the word's lowest to its highest F0. A word-initial
+            // accent starts at the speaking pitch (3.5 st under its peak), the syllable after the
+            // last high steps 3.29 st down, and an accent after lows rises 6.91 st from low.
+            let accent_start = f0 * 0.99;
+            let post_accent = accent_high * (-3.29_f64 / 12.0).exp2();
+            let low_accent = low * (6.91_f64 / 12.0).exp2();
             let dur = t1 - t0;
             let ramp = pitch_ramp(dur);
             let (start, finish, from, to) = match tone {
@@ -463,7 +470,9 @@ pub fn plan_utterance(input: &[Segment], o: &PlanOptions) -> Plan {
                 Tone::AccentHigh => (accent_high, accent_high, 0.0, 0.0),
                 Tone::Rising => (low, high, 0.30, 0.70),
                 Tone::Falling => (high, low, 0.30, 0.85),
-                Tone::Accent => (low, accent_high, 0.15, 0.75),
+                Tone::Accent => (accent_start, accent_high, 0.15, 0.75),
+                Tone::LowAccent => (low, low_accent, 0.15, 0.75),
+                Tone::PostAccent => (post_accent, post_accent, 0.0, 0.0),
             };
             if from == to {
                 gestures.push(Gesture::new(t0, hold, ramp, ramp, 2.0, one(ControlKey::F0, start)).label("pitch"));

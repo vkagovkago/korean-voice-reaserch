@@ -73,11 +73,11 @@ fn measure_syllables(syls: Vec<chimera::phonetics::Syllable>, body: HumanBody, n
     Measured { vot: (onset - release) * 1000.0, f0: pitch, tilt, out }
 }
 
-/// Say syllables (each vowel 350 ms, stressed): the plan, the audio and the voicing per block.
+/// Say syllables (each vowel 350 ms, stressed, with its tone): the plan, the audio and the voicing per block.
 fn say(syls: Vec<chimera::phonetics::Syllable>, body: HumanBody, name: &str, f0: f64) -> (Plan, Vec<f32>, Vec<f64>) {
     let segs: Vec<Segment> = syls
         .iter()
-        .flat_map(|s| s.onset.iter().cloned().chain([Segment { stress: Some(1), dur: Some(0.35), ..Segment::new(&s.nucleus.ipa) }]).chain(s.coda.iter().cloned()))
+        .flat_map(|s| s.onset.iter().cloned().chain([Segment { stress: Some(1), dur: Some(0.35), tone: s.nucleus.tone, ..Segment::new(&s.nucleus.ipa) }]).chain(s.coda.iter().cloned()))
         .collect();
     let plan = plan_utterance(&segs, &PlanOptions { body: name.into(), t0: 0.1, f0: Some(f0), ..Default::default() });
     let mut v = HumanVoice::new(FS, body, 2);
@@ -227,6 +227,23 @@ pub fn run(ctx: &Ctx, a: &[String]) -> Result<(), String> {
                 let v = |w: &str| measure_syllables(word_syllables_with(w, &o), body, name, f0).vot;
                 let (hl, lh, phl, plh) = (v("바\u{301}다"), v("바다\u{301}"), v("파\u{301}다"), v("파다\u{301}"));
                 println!("바다 HL/LH  lax {hl:.0}/{lh:.0} {} asp {phl:.0}/{plh:.0} {}", check(hl < lh - 3.0), check(phl < plh - 3.0));
+                // a word's F0 range (lowest to highest, semitones): older South Kyungsang HL 3.29,
+                // HH 3.59, LH 6.91 (Lee & Jongman 2015, Table 5)
+                let range = |w: &str| {
+                    let (plan, out, _) = say(word_syllables_with(w, &o), body, name, f0);
+                    let pitches: Vec<f64> = plan.segments.iter().filter(|s| s.kind == "vowel").flat_map(|v| {
+                        let n = ((v.t1 - v.t0 - 0.04) / 0.01).max(0.0) as usize;
+                        (0..=n).map(move |k| v.t0 + 0.02 + k as f64 * 0.01)
+                    }).filter_map(|t| {
+                        let mid = (t * FS) as usize;
+                        let fr: Vec<f64> = out[mid - 512..mid + 512].iter().map(|x| *x as f64).collect();
+                        Some(yin_pitch(&fr, FS, YinOpts { min_f0: Some(60.0), max_f0: Some(500.0), ..Default::default() }).f0).filter(|p| *p > 0.0)
+                    }).collect();
+                    let (lo, hi) = pitches.iter().fold((f64::MAX, 0.0f64), |(a, b), &p| (a.min(p), b.max(p)));
+                    st(hi, lo)
+                };
+                let (rhl, rhh, rlh) = (range("바\u{301}다"), range("바\u{301}다\u{301}"), range("바다\u{301}"));
+                println!("바다 F0 range st  HL {rhl:.1} {} HH {rhh:.1} {} LH {rlh:.1} {}", check((2.3..=4.3).contains(&rhl)), check((2.6..=4.6).contains(&rhh)), check((5.9..=7.9).contains(&rlh)));
             }
         }
         // sung (Sing's scaled voice onset times): pop singing measures ㅂ 27.7, ㅍ 32.7, ㅃ 10.8 ms

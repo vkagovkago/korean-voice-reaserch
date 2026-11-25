@@ -490,10 +490,10 @@ fn kyungsang_accent_keeps_a_double_high_and_places_the_late_low() {
     use chimera::phonetics::korean::{Dialect, Options, word_syllables_with};
     let o = Options { dialect: Dialect::Gyeongsang, ..Default::default() };
     let tones = |text| word_syllables_with(text, &o).into_iter().map(|s| s.nucleus.tone).collect::<Vec<_>>();
-    use Tone::{Accent, AccentHigh, Low};
-    assert_eq!(tones("가́나다"), [Some(Accent), None, Some(Low)]);
-    assert_eq!(tones("가́나́다"), [Some(Accent), Some(AccentHigh), None]);
-    assert_eq!(tones("가나다́"), [Some(Low), Some(Low), Some(Accent)]);
+    use Tone::{Accent, AccentHigh, Low, LowAccent, PostAccent};
+    assert_eq!(tones("가́나다"), [Some(Accent), Some(PostAccent), Some(Low)]);
+    assert_eq!(tones("가́나́다"), [Some(Accent), Some(AccentHigh), Some(PostAccent)]);
+    assert_eq!(tones("가나다́"), [Some(Low), Some(Low), Some(LowAccent)]);
     assert_eq!(tones("가나다"), [None, None, None]);
 }
 
