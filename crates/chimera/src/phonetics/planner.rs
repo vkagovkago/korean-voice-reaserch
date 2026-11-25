@@ -189,6 +189,7 @@ const BREATHY_RELEASE: f64 = 0.08;
 /// Korean tense stop starts pressed (low H1-H2, a sharp closure) for its first 50-100 ms
 const FORTIS_TENSION: f64 = 0.9;
 const FORTIS_RELEASE: f64 = 0.08;
+const FORTIS_FRICATIVE_TENSION: f64 = 0.6;
 /// the fold tension of a slack voice onset (Korean's lax stops), against the performer's 0.5
 const SLACK_TENSION: f64 = 0.3;
 
@@ -373,11 +374,11 @@ pub fn plan_utterance(input: &[Segment], o: &PlanOptions) -> Plan {
                 voiced_again = g.end();
                 gestures.push(g);
             } else {
-                // ponytail: Korean ㅆ keeps this default and its vowel starts ~35 ms after the
-                // frication (Seoul: 9-14). Closing the folds sooner (ramp 12-20 ms, or before the
-                // frication ends) got it to 21-27 ms but left the male voice's first ~40 ms aperiodic
-                // (no pitch 25 ms in); fix the onset before shortening this
-                gestures.push(Gesture::new(t0 - 0.015, t1 + 0.005, 0.03, 0.03, 6.0, one(ControlKey::ABDUCTION, 0.3)).label("voiceless"));
+                // a fortis fricative (Korean ㅆ) opens the folds less, as the tense stops do, and
+                // closes them as its frication ends: its vowel starts ~19 ms after it (Seoul: 9-14;
+                // ㅅ's 29-78). With the default opening it started ~35 ms after
+                let (close, ramp, amp) = if s.fortis == Some(true) { (-0.01, 0.02, 0.22) } else { (0.005, 0.03, 0.3) };
+                gestures.push(Gesture::new(t0 - 0.015, t1 + close, 0.03, ramp, 6.0, one(ControlKey::ABDUCTION, amp)).label("voiceless"));
             }
         } else if def.manner == Manner::Fricative {
             gestures.push(Gesture::new(t0, t1, 0.03, 0.03, 3.0, one(ControlKey::ABDUCTION, 0.035)).label("voiced frication"));
@@ -392,7 +393,10 @@ pub fn plan_utterance(input: &[Segment], o: &PlanOptions) -> Plan {
         // vowel, a pressed voice where a lax stop's vowel starts breathy
         if s.fortis == Some(true) && def.voicing == Voicing::Voiceless && matches!(def.manner, Manner::Stop | Manner::Affricate | Manner::Fricative) {
             let until = js_min(t1 + FORTIS_RELEASE, times.get(i + 1).map_or(f64::MAX, |n| n.t1));
-            gestures.push(Gesture::new(t0 + 0.5 * dur, until, 0.03, 0.03, 5.0, one(ControlKey::TENSION, FORTIS_TENSION)).label("fortis"));
+            // a fricative's folds stiffen less: at FORTIS_TENSION a male voice starting right after
+            // ㅆ's quick closure is aperiodic for its first 30-40 ms (no pitch 25 ms in)
+            let tension = if def.manner == Manner::Fricative { FORTIS_FRICATIVE_TENSION } else { FORTIS_TENSION };
+            gestures.push(Gesture::new(t0 + 0.5 * dur, until, 0.03, 0.03, 5.0, one(ControlKey::TENSION, tension)).label("fortis"));
         }
         // a breathy voice onset after an aspirated release (Korean's lax ㄱ ㄷ ㅂ ㅈ word-initially):
         // the folds come back only part way as the aspiration ends and stay so into the vowel

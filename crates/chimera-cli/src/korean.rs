@@ -236,6 +236,17 @@ mod tests {
     }
 
     #[test]
+    fn ssangsiot_voices_soon_and_periodic_after_its_frication() {
+        // Seoul ㅆ: 9-14 ms before the voice (Chang 2007); was 35. Closing the folds sooner at the
+        // stops' fold tension left the male voice without pitch 25 ms in
+        for (body, name, f0) in VOICES {
+            let [s, ss] = ["사", "싸"].map(|w| measure(w, body, name, f0));
+            assert!(ss.vot < 22.0 && s.vot > 45.0, "{name}: ㅅ {} ㅆ {}", s.vot, ss.vot);
+            assert!(ss.f0 > 0.0 && ss.tilt < s.tilt, "{name}: f0 {} tilt {} vs {}", ss.f0, ss.tilt, s.tilt);
+        }
+    }
+
+    #[test]
     fn sung_stops_aspirate_briefly_and_keep_their_order() {
         // pop singing: ㅂ 27.7, ㅍ 32.7, ㅃ 10.8 ms (이철희·한경훈 2020); at a 0 floor they all sat at ~41
         let (body, name, f0) = VOICES[0];
