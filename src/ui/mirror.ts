@@ -2,16 +2,19 @@
  * The mic mirror: speak, and the model's folds and tongue follow. Each animation frame reads the
  * mic (`src/audio/listen.ts`): its pitch drives the folds (and whether they vibrate at all), its
  * F1/F2 the tongue, jaw and lips (the calibrated vowels nearest to them, `articForFormants`), its
- * loudness the breath. Consonants aren't followed: a stop's closure can't be read off F1/F2.
+ * loudness the breath. Consonants follow what can be heard of them: a stop's place from its burst
+ * (shown for a moment once it's released, as its closure is silent), a nasal's from its murmur
+ * (with the velum down), [s ɕ h] from their noise; each takes the pose the speech planner gives it.
  *
  * The voice is silent unless `echo` is on, so the speakers don't feed the mic. Nothing leaves the
  * device.
  */
-import { hear } from "../audio/listen.ts";
+import { hear, Listener } from "../audio/listen.ts";
+import { ARTIC_KEYS, planUtterance, tokenizeIpa } from "../wasm/engine.ts";
 import { engine } from "../audio/AudioEngine.ts";
 import { useStore } from "./store.ts";
 import { getModel } from "./useModel.ts";
-import { defaultF0 } from "./body.ts";
+import { bodyKey, defaultF0, type BodyMix } from "./body.ts";
 import type { HumanArtic } from "../wasm/types.ts";
 
 /** louder than this (RMS) is a voice, quieter is a pause */
@@ -28,6 +31,29 @@ const LEARN = 4;
  */
 const FORMANT_PER_PITCH = 0.27;
 
+interface Pose {
+  artic: Partial<HumanArtic>;
+  /** the tongue tip has its own target (a coronal) */
+  tip: boolean;
+}
+
+/** A consonant's articulation as the speech planner gives it between two [a]s, per body. */
+const poses = new Map<string, Pose>();
+function poseOf(c: string, body: BodyMix): Pose {
+  const key = `${bodyKey(body)}|${c}`;
+  let p = poses.get(key);
+  if (!p) {
+    const plan = planUtterance(tokenizeIpa(`a${c}a`), { body, t0: 0 });
+    const artic: Partial<HumanArtic> = {};
+    for (const g of plan.gestures.filter((g) => g.label === c || (g.label === "velum" && "mnŋ".includes(c)))) {
+      for (const [k, v] of Object.entries(g.targets)) if ((ARTIC_KEYS as readonly string[]).includes(k)) artic[k as keyof HumanArtic] = v as number;
+    }
+    p = { artic, tip: "ttX" in artic || "ttY" in artic };
+    poses.set(key, p);
+  }
+  return p;
+}
+
 interface Running {
   ctx: AudioContext;
   stream: MediaStream;
@@ -39,6 +65,7 @@ interface Running {
   logF0: number;
   heardFor: number;
   artic: Partial<HumanArtic>;
+  listener: Listener;
 }
 
 let run: Running | null = null;
@@ -67,7 +94,7 @@ export async function startMirror(): Promise<boolean> {
   const analyser = ctx.createAnalyser();
   analyser.fftSize = 2048;
   ctx.createMediaStreamSource(stream).connect(analyser);
-  run = { ctx, stream, analyser, buf: new Float32Array(analyser.fftSize), raf: 0, last: performance.now(), logF0: 0, heardFor: 0, artic: {} };
+  run = { ctx, stream, analyser, buf: new Float32Array(analyser.fftSize), raf: 0, last: performance.now(), logF0: 0, heardFor: 0, artic: {}, listener: new Listener(ctx.sampleRate) };
   engine.setVolume(echo ? useStore.getState().volume : 0);
   useStore.getState().setSource({ voiced: true });
   run.raf = requestAnimationFrame(step);
@@ -93,9 +120,18 @@ function step(now: number): void {
   const dt = Math.min(0.1, (now - r.last) / 1000);
   r.last = now;
   r.analyser.getFloatTimeDomainData(r.buf);
-  const h = hear(r.buf, r.ctx.sampleRate);
+  const fs = r.ctx.sampleRate;
   const s = useStore.getState();
-  if (h.rms < SPEAKING) {
+  // the samples new since the last frame (the stop tracker's stream) and the latest 2048
+  const fresh = Math.min(r.buf.length, Math.max(1, Math.round(dt * fs)));
+  const h = hear(r.buf, fs);
+  const sound = r.listener.push(r.buf.subarray(r.buf.length - fresh), r.buf, h);
+  if (sound.kind === "stop") {
+    // its closure, shown once its release is heard (the closure itself is silent)
+    snap(r, poseOf(sound.place, s.body));
+    return;
+  }
+  if (h.rms < SPEAKING || sound.kind === "silence") {
     engine.gate(0);
     return;
   }
@@ -103,6 +139,11 @@ function step(now: number): void {
   // a pitch: the folds vibrate at it; none (a fricative, a whisper): they stay apart
   if (h.f0 > 0) s.setSource({ f0: Math.min(1000, Math.max(60, h.f0)), voiced: true });
   else s.setSource({ voiced: false });
+  if (sound.kind === "nasal" || sound.kind === "fricative") {
+    // [h] is the folds alone: the mouth keeps the vowel's shape
+    if (sound.place !== "h") snap(r, poseOf(sound.place, s.body));
+    return;
+  }
   if (h.formants.length < 2 || h.f0 <= 0) return;
   const model = getModel(s.body, engine.sampleRate);
   // speaker normalisation: the heard formants scaled from this voice's tract to the model body's,
@@ -117,6 +158,14 @@ function step(now: number): void {
     const prev = r.artic[k] ?? s.artic[k];
     next[k] = prev + FOLLOW * ((target[k] as number) - prev);
   }
+  // a vowel: the velum shut and the tongue tip resting
+  next.velum = 0;
   r.artic = next;
-  s.setArtic(next);
+  s.setArtic(next, false);
+}
+
+/** Take a consonant's pose at once (the vowel after it eases out of it). */
+function snap(r: Running, p: Pose): void {
+  r.artic = { ...r.artic, ...p.artic };
+  useStore.getState().setArtic(p.artic, p.tip);
 }

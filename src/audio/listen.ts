@@ -185,3 +185,267 @@ export function hear(frame: ArrayLike<number>, fs: number, minRms = 0.004): Hear
   // LPC's F1 up (a woman's [i] read 446 Hz for 350 over 35 ms)
   return { rms, f0, formants: firstTwo(lpcFormants(y, fsd)) };
 }
+
+/** Power spectrum (n a power of two) of x[start..start+n), Hann-windowed; bins 0..n/2. */
+export function powerSpectrum(x: ArrayLike<number>, start: number, n: number): Float64Array {
+  const re = new Float64Array(n), im = new Float64Array(n);
+  for (let i = 0; i < n; i++) re[i] = (x[start + i] ?? 0) * (0.5 - 0.5 * Math.cos((2 * Math.PI * i) / (n - 1)));
+  // iterative radix-2 FFT
+  for (let i = 1, j = 0; i < n; i++) {
+    let bit = n >> 1;
+    for (; j & bit; bit >>= 1) j ^= bit;
+    j ^= bit;
+    if (i < j) {
+      [re[i], re[j]] = [re[j], re[i]];
+      [im[i], im[j]] = [im[j], im[i]];
+    }
+  }
+  for (let len = 2; len <= n; len <<= 1) {
+    const ang = (-2 * Math.PI) / len;
+    for (let i = 0; i < n; i += len) {
+      for (let k = 0; k < len / 2; k++) {
+        const wr = Math.cos(ang * k), wi = Math.sin(ang * k);
+        const ar = re[i + k + len / 2] * wr - im[i + k + len / 2] * wi;
+        const ai = re[i + k + len / 2] * wi + im[i + k + len / 2] * wr;
+        re[i + k + len / 2] = re[i + k] - ar;
+        im[i + k + len / 2] = im[i + k] - ai;
+        re[i + k] += ar;
+        im[i + k] += ai;
+      }
+    }
+  }
+  const p = new Float64Array(n / 2 + 1);
+  for (let k = 0; k <= n / 2; k++) p[k] = re[k] * re[k] + im[k] * im[k];
+  return p;
+}
+
+export interface Shape {
+  /** spectral centroid over 500-10000 Hz (Hz) */
+  centroid: number;
+  /** share of the energy above 1 kHz */
+  high: number;
+  /** centroid of the energy above 1 kHz (Hz) */
+  centroidHigh: number;
+}
+
+/** Where a stretch's energy sits: its centroid and how much of it is above 1 kHz. */
+export function shape(x: ArrayLike<number>, start: number, n: number, fs: number): Shape {
+  const p = powerSpectrum(x, start, n);
+  const hz = fs / n;
+  let tot = 0, hi = 0, num = 0, den = 0, numH = 0;
+  for (let k = 1; k < p.length; k++) {
+    const f = k * hz;
+    tot += p[k];
+    if (f > 1000 && f <= 10000) (hi += p[k]), (numH += f * p[k]);
+    if (f >= 500 && f <= 10000) (num += f * p[k]), (den += p[k]);
+  }
+  return { centroid: den > 0 ? num / den : 0, high: tot > 0 ? hi / tot : 0, centroidHigh: hi > 0 ? numH / hi : 0 };
+}
+
+export type StopPlace = "p" | "t" | "k";
+
+/**
+ * A stop's place from ~25 ms around its release, `start` 5-15 ms before it (Stevens & Blumstein's
+ * burst shapes; thresholds set on the engine's own [apa ata aka], male and female, alone and in
+ * running speech): the share of energy above 1 kHz is 0.008-0.02 for a labial, 0.15-0.30 for a
+ * velar, 0.44-0.60 for an alveolar (split at 0.37). A burst mostly above 1 kHz but centred under 3 kHz is velar
+ * too: speech's compact 1.5-3 kHz velar peak (the engine's velar is high and sparse instead).
+ * ponytail: thresholds from synthetic speech and textbook bands; tune on real recordings
+ */
+export function burstPlace(x: ArrayLike<number>, start: number, fs: number): StopPlace {
+  // four 512-sample windows 5 ms apart, energy-weighted: where the release falls among them
+  // (the tracker finds it within a hop or two) matters less than in any one window
+  const step = Math.round(fs * 0.005);
+  let tot = 0, hi = 0, numH = 0;
+  for (let w = 0; w < 4; w++) {
+    const p = powerSpectrum(x, start + w * step, 512);
+    const hz = fs / 512;
+    for (let k = 1; k < p.length; k++) {
+      const f = k * hz;
+      if (f > 10000) break;
+      tot += p[k];
+      if (f > 1000) (hi += p[k]), (numH += f * p[k]);
+    }
+  }
+  const high = tot > 0 ? hi / tot : 0, centroidHigh = hi > 0 ? numH / hi : 0;
+  if (high < BURST_LABIAL) return "p";
+  if (high >= BURST_ALVEOLAR) return centroidHigh < 3000 ? "k" : "t";
+  return "k";
+}
+const BURST_LABIAL = 0.08;
+const BURST_ALVEOLAR = 0.37;
+
+export type Sound =
+  | { kind: "silence" }
+  | { kind: "vowel" }
+  | { kind: "nasal"; place: "m" | "n" | "ŋ" }
+  | { kind: "fricative"; place: "s" | "ɕ" | "h" };
+
+/**
+ * What a frame is, against `ref`, the recent vowels' RMS: a nasal is voiced, low-F1 (< 420 Hz) and
+ * at least 30% quieter than the vowels, its place from the murmur's second resonance (the engine's
+ * [m n ŋ]: 1258-1304, 1462-1480, 2399-2491 Hz); a fricative is voiceless and mostly above 1 kHz:
+ * [h] faint (under a quarter of the vowels), [s] centred over 4.5 kHz, [ɕ] lower.
+ * ponytail: a quiet [u] after a loud [a] can read as a nasal; a per-place murmur model if it does
+ */
+export function soundOf(frame: ArrayLike<number>, fs: number, heard: Heard, ref: number): Sound {
+  if (heard.rms < 0.08 * ref || heard.rms < 0.004) return { kind: "silence" };
+  if (heard.f0 > 0) {
+    const [f1, f2] = heard.formants;
+    if (f1 !== undefined && f1 < 420 && heard.rms < 0.7 * ref) return { kind: "nasal", place: f2 < 1370 ? "m" : f2 < 1950 ? "n" : "ŋ" };
+    return { kind: "vowel" };
+  }
+  // judged on the latest ~21 ms alone: a frame that ends in a closure still holds the vowel before
+  // it, loud enough to pass, while its tail is a silence whose faint noise is all high
+  const n = Math.min(1024, 1 << Math.floor(Math.log2(frame.length)));
+  let e = 0;
+  for (let i = frame.length - n; i < frame.length; i++) e += frame[i] * frame[i];
+  const tail = Math.sqrt(e / n);
+  if (tail < 0.08 * ref) return { kind: "silence" };
+  const s = shape(frame, frame.length - n, n, fs);
+  if (s.high < 0.5) return { kind: "silence" };
+  if (tail < 0.25 * ref) return { kind: "fricative", place: "h" };
+  return { kind: "fricative", place: s.centroidHigh > 4500 ? "s" : "ɕ" };
+}
+
+/**
+ * Stops, from a stream of samples: a closure (under 8% of the vowels' level for 15-250 ms; a
+ * longer gap is a pause, and the vowel after it no stop) and
+ * then a release, whose burst gives the place. `push` takes whatever arrived since the last call
+ * and returns the stops released in it (each about 11 ms after its release, the burst's length).
+ */
+export class StopTracker {
+  private readonly hop: number;
+  private buf: number[] = [];
+  /** absolute index of buf[0] */
+  private base = 0;
+  /** next sample index to examine (hop-aligned) */
+  private next = 0;
+  private ref = 0;
+  private gapHops = 0;
+  /** hops since one at vowel level, and whether the current gap began within 60 ms of one (a
+   * closure can flicker, so its gap restarts a little after the vowel): a
+   * stop closes out of a vowel, where a breath's faint onset before a phrase's first vowel doesn't */
+  private loudAgo = 1e9;
+  private gapAfterLoud = false;
+  private pending = -1;
+  /** a candidate release's first hops: their summed level, how many, and the gap before it. A
+   * release leads into the vowel; a flicker inside a closure (the engine's velar has one 11 ms in)
+   * falls silent again and is dropped, the gap going on */
+  private after = 0;
+  private afterHops = 0;
+  private pendingGap = 0;
+  /** absolute index before which no new release counts: a velar burst, a short silence, then the
+   * voice's onset read as two stops */
+  private refractory = 0;
+  constructor(private readonly fs: number) {
+    this.hop = Math.round(fs * 0.005);
+  }
+  /** the recent vowels' RMS (decays slowly) */
+  get level(): number {
+    return this.ref;
+  }
+  /** a release is heard but its burst not yet read */
+  get releasing(): boolean {
+    return this.pending >= 0;
+  }
+  push(x: ArrayLike<number>): StopPlace[] {
+    for (let i = 0; i < x.length; i++) this.buf.push(x[i]);
+    const out: StopPlace[] = [];
+    const end = this.base + this.buf.length;
+    while (this.next + this.hop <= end) {
+      const a = this.next - this.base;
+      let s = 0;
+      for (let i = a; i < a + this.hop; i++) s += this.buf[i] * this.buf[i];
+      const e = Math.sqrt(s / this.hop);
+      // the reference follows loud stretches fast and decays over ~2 s
+      this.ref = e > this.ref ? this.ref + 0.3 * (e - this.ref) : this.ref * Math.exp(-0.005 / 2);
+      // within a gap, anything short of a release (15% of the vowels) is still the closure: a
+      // closure flickers, and a gap cut into pieces under 15 ms would hide the stop
+      if (this.pending >= 0 && this.afterHops < 4) {
+        this.after += e;
+        if (++this.afterHops === 4 && this.after / 4 < 0.15 * this.ref) {
+          this.pending = -1;
+          this.refractory = 0;
+          this.gapHops = this.pendingGap + 4;
+          this.next += this.hop;
+          continue;
+        }
+      }
+      const silent = e < 0.08 * this.ref || (this.gapHops > 0 && e <= 0.15 * this.ref);
+      if (silent) {
+        if (this.gapHops === 0) this.gapAfterLoud = this.loudAgo <= 12;
+        this.gapHops++;
+      } else {
+        const gapMs = this.gapHops * 5;
+        if (this.gapHops > 0 && this.gapAfterLoud && gapMs >= 15 && gapMs <= 250 && e > 0.15 * this.ref && this.pending < 0 && this.next >= this.refractory) {
+          this.pending = this.next;
+          this.refractory = this.next + Math.round(0.08 * this.fs);
+          this.after = 0;
+          this.afterHops = 0;
+          this.pendingGap = this.gapHops;
+        }
+        this.gapHops = 0;
+      }
+      this.loudAgo = e > 0.3 * this.ref ? 0 : this.loudAgo + 1;
+      this.next += this.hop;
+    }
+    if (this.pending >= 0 && this.afterHops >= 4 && end - this.pending >= 512 + this.hop) {
+      // from two hops before the first loud one: a labial's weak burst starts under the threshold
+      out.push(burstPlace(this.buf, Math.max(0, this.pending - 2 * this.hop - this.base), this.fs));
+      this.pending = -1;
+    }
+    // keep ~4096 samples of history
+    const drop = Math.max(0, Math.min(this.next, this.pending >= 0 ? this.pending : this.next) - this.base - 4096);
+    if (drop > 0) {
+      this.buf.splice(0, drop);
+      this.base += drop;
+    }
+    return out;
+  }
+}
+
+export type Heard2 = Sound | { kind: "stop"; place: StopPlace };
+
+/**
+ * One frame's call, as the mirror makes it: a stop once its burst is read, held `hold` seconds
+ * (its aspiration is voiceless noise that would otherwise read as [s] or [h]), and nothing new
+ * while a release waits for its burst; otherwise the frame's own sound, a nasal or fricative once
+ * two frames agree.
+ */
+export class Listener {
+  private readonly stops: StopTracker;
+  private left = 0;
+  private stop: StopPlace = "p";
+  constructor(private readonly fs: number, private readonly hold = 0.08) {
+    this.stops = new StopTracker(fs);
+  }
+  get level(): number {
+    return this.stops.level;
+  }
+  /** `fresh`: the samples since the last call; `frame`: the latest ~2048 (ending with them). */
+  push(fresh: ArrayLike<number>, frame: ArrayLike<number>, heard: Heard): Heard2 {
+    const found = this.stops.push(fresh);
+    if (found.length) {
+      this.stop = found[found.length - 1];
+      this.left = this.hold;
+      return { kind: "stop", place: this.stop };
+    }
+    if (this.left > 0) {
+      this.left -= fresh.length / this.fs;
+      return { kind: "stop", place: this.stop };
+    }
+    if (this.stops.releasing) return this.said;
+    const now = soundOf(frame, this.fs, heard, Math.max(this.stops.level, 0.01));
+    // a nasal or fricative counts once two frames running (~33 ms) agree: a tongue tip closing for
+    // [t] makes a frame of [ɕ]-like noise; a real [s] or [m] lasts several
+    const key = JSON.stringify(now);
+    const steady = key === this.last;
+    this.last = key;
+    if ((now.kind === "nasal" || now.kind === "fricative") && !steady) return this.said;
+    this.said = now;
+    return now;
+  }
+  private last = "";
+  private said: Heard2 = { kind: "silence" };
+}
