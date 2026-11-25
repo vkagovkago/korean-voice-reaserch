@@ -132,6 +132,9 @@ entered and depend on the user for regional vocabulary, endings, and lexical ton
   An acute marks a high syllable (가́지). Pitch rises within the marked vowel, stays high
   on adjacent marked syllables, then targets a low two syllables after the last marked
   vowel if the word is long enough. Focus and age-specific timing are still unmodelled.
+  Lax and aspirated stops keep apart by VOT (rendered 33-38 against 104 ms; South Gyeongsang
+  men 38 and 104, 이현정·Jongman 2012), and a phrase's first ㄴ ㅁ keeps its nasality (Park, Jang,
+  Kim & Cho 2025).
   [Jun et al. 2006](https://linguistics.ucla.edu/people/jun/papers%20in%20pdf/Jun_Kim_Lee_Jun-J%20of%20EastAsianLing-2006.pdf).
 - **jeju**: ㆍ is [ɔ] following the recorded-vowel analysis of
   [Kim 2005](https://www.kci.go.kr/kciportal/landing/article.kci?arti_id=ART000965998), and ᆢ is [jɔ].
@@ -139,12 +142,15 @@ entered and depend on the user for regional vocabulary, endings, and lexical ton
   [Kim and Baek 2022](https://www.kci.go.kr/kciportal/ci/sereArticleSearch/ciSereArtiView.kci?sereArticleSearchBean.artiId=ART002829883).
 - **northwest**: suppresses ㄷ/ㅌ palatalization before 이 (같이); ㅈ-series affricates use an
   alveolar place. [Northwestern dialect](https://encykorea.aks.ac.kr/Article/E0027782).
+  With the northeast, lax and aspirated stops keep apart by VOT (rendered 19-22 against 80 ms;
+  North Korean speakers 21.9 and 81.1, Jung, Oh & Han 2025).
 - **northeast**: takes northern Hamgyong alveolar affricates and ㅢ as [i]. An acute or one
   dot marks high (가〮), and two dots mark a long rise (가〯), following the three-way inventories
   described for Gilju, Seongjin and Dancheon. Tone marks are input annotations.
   [Northeastern dialect](https://encykorea.aks.ac.kr/Article/E0016526).
 - **middle**: 15th-century vowels ㅓ [ə], ㅡ [ɨ], ㆍ by its hypothesis, and ㅐ ㅔ ㅚ ㅟ ㅢ ㆎ ending in
-  [j]. Final ㅅ stays [s]. No dot gives low (平聲), one dot gives high (去聲), and two give a rise
+  [j]. Final ㅅ stays [s]. Nothing palatalises (같이 [kati]; that came in the 17th-18th centuries)
+  and ㅅ ㅈ ㅊ are dental before any vowel ([si], [tsi]), 이기문's 치음; ㅅ is not aspirated. No dot gives low (平聲), one dot gives high (去聲), and two give a rise
   inside a lengthened vowel (上聲). The low and high targets are 90% and 115% of the selected
   speaking pitch, with the transition across the middle 40% of the vowel. These are synthesis
   settings. The planner gives explicit lexical tones priority over its default phrase contour.
