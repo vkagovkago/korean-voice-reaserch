@@ -37,7 +37,9 @@ pub enum Dialect {
     #[default]
     Seoul,
     Central,
-    /// Gyeongsang (a pilot profile, three features most accounts agree on): ㅓ and ㅡ merge as [ə];
+    /// Gyeongsang (a pilot profile, three features most accounts agree on): ㅓ and ㅡ merge as [ɤ]
+    /// (older South Gyeongsang men say both at F1 ~478, F2 ~1230 Hz, women ~543/1465, 이향원·
+    /// 신우봉·신지영 2017, Table 6: [ɤ]'s target, not [ə]'s, whose F2 sits 230-280 Hz higher);
     /// ㅆ is said as ㅅ (쌀 = 살); pitch accent, a syllable marked with an acute (가́지) said high.
     /// Which syllables are high is the word's, by region and speaker; with no lexicon here, the
     /// input marks them. Not modelled: rising (long) tones, regional and generational differences.
@@ -110,9 +112,9 @@ fn reading_vowel(letter: char, o: &Options) -> Option<(&'static str, &'static st
         (Central, 'ㅙ') => ("w", "e", false),
         (Southwest, 'ㅢ') => ("", "ɯ", false),
         (Northeast, 'ㅢ') => ("", "i", false),
-        (Gyeongsang, 'ㅓ' | 'ㅡ') => ("", "ə", false),
-        (Gyeongsang, 'ㅕ') => ("j", "ə", false),
-        (Gyeongsang, 'ㅝ') => ("w", "ə", false),
+        (Gyeongsang, 'ㅓ' | 'ㅡ') => ("", "ɤ", false),
+        (Gyeongsang, 'ㅕ') => ("j", "ɤ", false),
+        (Gyeongsang, 'ㅝ') => ("w", "ɤ", false),
         // ㆎ is ㆍ and [j] in any reading
         (_, 'ㆎ') => ("", o.arae_a, true),
         _ => return None,

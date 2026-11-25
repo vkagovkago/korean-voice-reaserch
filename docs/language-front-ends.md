@@ -128,7 +128,8 @@ entered and depend on the user for regional vocabulary, endings, and lexical ton
   peaks near the start of the accentual phrase, and ends low.
   [Southwestern dialect](https://encykorea.aks.ac.kr/Article/E0027670).
   [Jun 1998](https://linguistics.ucla.edu/people/jun/papers%20in%20pdf/Jun-Phonology1998.pdf).
-- **southeast** (alias **gyeongsang**): ㅓ and ㅡ merge as [ə] and ㅆ reads as ㅅ.
+- **southeast** (alias **gyeongsang**): ㅓ and ㅡ merge as [ɤ] (older Gyeongnam speakers say both
+  at ~478/1230 Hz male, ~543/1465 female; 이향원·신우봉·신지영 2017) and ㅆ reads as ㅅ.
   An acute marks a high syllable (가́지). Pitch rises within the marked vowel, stays high
   on adjacent marked syllables, then targets a low two syllables after the last marked
   vowel if the word is long enough. Focus and age-specific timing are still unmodelled.

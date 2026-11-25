@@ -253,6 +253,16 @@ pub fn run(ctx: &Ctx, a: &[String]) -> Result<(), String> {
                 println!("바다 F0 range st  HL {rhl:.1} {} HH {rhh:.1} {} LH {rlh:.1} {}", check((2.3..=4.3).contains(&rhl)), check((2.6..=4.6).contains(&rhh)), check((5.9..=7.9).contains(&rlh)));
             }
         }
+        {
+            // Gyeongsang's merged ㅓ/ㅡ: older Gyeongnam men ㅓ 477/1198, ㅡ 478/1259 Hz; women
+            // 576/1346, 510/1583 (이향원·신우봉·신지영 2017, Table 6)
+            let o = Options { dialect: Dialect::Gyeongsang, ..Default::default() };
+            let (plan, out, _) = say(word_syllables_with("허", &o), body, name, f0);
+            let (f1, f2) = first_vowel_formants(&plan, &out);
+            // the two vowels' mean, +-1 SD (SDs 56-61 / 172-190 Hz male, 81-100 / 240-276 female)
+            let (r1, r2) = if name == "male" { (418.0..=538.0, 1048.0..=1408.0) } else { (453.0..=633.0, 1215.0..=1715.0) };
+            println!("허 gyeongsang ㅓ/ㅡ F1 {f1:.0} {} F2 {f2:.0} {}", check(r1.contains(&f1)), check(r2.contains(&f2)));
+        }
         if name == "male" {
             // Jeju's ㆍ in an older man's speech: F1 549, F2 954 Hz (78-year-old, 이승진·최홍식 2018,
             // KSSS 10(1), Table 3); other 70s men 537/902 (신우봉·신지영 2012), 578/910 (김원보 2006),
@@ -292,6 +302,18 @@ mod tests {
             let [s, ss] = ["사", "싸"].map(|w| measure(w, body, name, f0));
             assert!(ss.vot < 22.0 && s.vot > 45.0, "{name}: ㅅ {} ㅆ {}", s.vot, ss.vot);
             assert!(ss.f0 > 0.0 && ss.tilt < s.tilt, "{name}: f0 {} tilt {} vs {}", ss.f0, ss.tilt, s.tilt);
+        }
+    }
+
+    #[test]
+    fn gyeongsang_merged_eo_eu_sits_where_older_gyeongnam_speakers_say_it() {
+        // older Gyeongnam: ㅓ/ㅡ male 477/1198, 478/1259; female 576/1346, 510/1583 Hz (이향원·신우봉·
+        // 신지영 2017); the reading's [ə] rendered F2 1470 / 1762, 240-300 Hz above
+        let o = Options { dialect: Dialect::Gyeongsang, ..Default::default() };
+        for ((body, name, f0), r2) in VOICES.into_iter().zip([1048.0..=1408.0, 1215.0..=1715.0]) {
+            let (plan, out, _) = say(word_syllables_with("허", &o), body, name, f0);
+            let (_, f2) = first_vowel_formants(&plan, &out);
+            assert!(r2.contains(&f2), "{name}: {f2}");
         }
     }
 

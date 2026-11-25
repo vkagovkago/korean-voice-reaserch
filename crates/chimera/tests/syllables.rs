@@ -249,8 +249,8 @@ fn gyeongsang_merges_eo_and_eu_says_ss_as_s_and_raises_marked_syllables() {
     let gs = Options { dialect: Dialect::Gyeongsang, ..Default::default() };
     let read = |w: &str, o: &Options| word_syllables_with(w, o);
     let vowels = |w: &str, o: &Options| read(w, o).iter().map(|s| s.nucleus.ipa.clone()).collect::<Vec<_>>().join(".");
-    // ㅓ ㅡ (and ㅕ) are one vowel [ə]; Seoul keeps them apart
-    assert_eq!(vowels("거그겨", &gs), "ə.ə.ə");
+    // ㅓ ㅡ (and ㅕ) are one vowel [ɤ] (older Gyeongnam speakers, 이향원 외 2017); Seoul keeps them apart
+    assert_eq!(vowels("거그겨", &gs), "ɤ.ɤ.ɤ");
     assert_eq!(vowels("거그", &Options::default()), "ʌ.ɯ");
     // 쌀 is said as 살: no fortis
     assert_eq!(read("쌀", &gs)[0].onset[0], read("살", &gs)[0].onset[0]);
@@ -314,7 +314,7 @@ fn sung_lyrics_read_hangul_in_the_dialect() {
     use chimera::phonetics::syllables::lyrics_to_syllables_in;
     let gs = Options { dialect: Dialect::Gyeongsang, ..Default::default() };
     let vowels = |o: Options| lyrics_to_syllables_in("거그 쌀", &word, o).iter().map(|s| s.nucleus.ipa.clone()).collect::<Vec<_>>().join(".");
-    assert_eq!(vowels(gs), "ə.ə.a");
+    assert_eq!(vowels(gs), "ɤ.ɤ.a");
     assert_eq!(vowels(Options::default()), "ʌ.ɯ.a");
     assert_eq!(lyrics_to_syllables_in("쌀", &word, gs)[0].onset[0].fortis, None);
 }
@@ -398,7 +398,7 @@ fn regional_profiles_apply_distinct_pronunciation_rules() {
     let read = |word, name| read_as(word, Options { dialect: Dialect::from_name(name).unwrap(), ..Default::default() });
     assert_eq!(read("개", "central"), "ke");
     assert_eq!(read("의사", "southwest"), "ɯ.sa");
-    assert_eq!(read("서으", "southeast"), "sə.ə");
+    assert_eq!(read("서으", "southeast"), "sɤ.ɤ");
     assert_eq!(read("ᄆᆞᆯ", "jeju"), "mɔl");
     assert_eq!(read("같이", "northwest"), "ka.ti");
     assert_eq!(read("의자", "northeast"), "i.dza");
