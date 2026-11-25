@@ -262,6 +262,12 @@ pub fn run(ctx: &Ctx, a: &[String]) -> Result<(), String> {
             // the two vowels' mean, +-1 SD (SDs 56-61 / 172-190 Hz male, 81-100 / 240-276 female)
             let (r1, r2) = if name == "male" { (418.0..=538.0, 1048.0..=1408.0) } else { (453.0..=633.0, 1215.0..=1715.0) };
             println!("허 gyeongsang ㅓ/ㅡ F1 {f1:.0} {} F2 {f2:.0} {}", check(r1.contains(&f1)), check(r2.contains(&f2)));
+            if name == "female" {
+                // ㅐ = ㅔ: Daegu women in their 40s 599/2386 Hz, +-2 SD (69/158; 장혜진·신지영 2006, Table 3)
+                let (plan, out, _) = say(word_syllables_with("해", &o), body, name, f0);
+                let (f1, f2) = first_vowel_formants(&plan, &out);
+                println!("해 gyeongsang ㅐ=ㅔ F1 {f1:.0} {} F2 {f2:.0} {}", check((461.0..=737.0).contains(&f1)), check((2069.0..=2702.0).contains(&f2)));
+            }
         }
         {
             // Seoul's ㅓ: men 498/1090 (young), 446/1063 (older); women 586/1231, 561/1269 Hz

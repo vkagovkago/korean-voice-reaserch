@@ -112,6 +112,11 @@ fn reading_vowel(letter: char, o: &Options) -> Option<(&'static str, &'static st
         (Central, 'ㅙ') => ("w", "e", false),
         (Southwest, 'ㅢ') => ("", "ɯ", false),
         (Northeast, 'ㅢ') => ("", "i", false),
+        // ㅐ and ㅔ are one vowel: Daegu women in their 40s say both at 599/2386 Hz (장혜진·
+        // 신지영 2006, Table 3), [e]'s target (521/2394) rather than [ɛ]'s (710/2025)
+        (Gyeongsang, 'ㅐ') => ("", "e", false),
+        (Gyeongsang, 'ㅒ') => ("j", "e", false),
+        (Gyeongsang, 'ㅙ') => ("w", "e", false),
         (Gyeongsang, 'ㅓ' | 'ㅡ') => ("", "ɤ", false),
         (Gyeongsang, 'ㅕ') => ("j", "ɤ", false),
         (Gyeongsang, 'ㅝ') => ("w", "ɤ", false),

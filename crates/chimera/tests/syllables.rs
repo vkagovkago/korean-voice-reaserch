@@ -251,6 +251,8 @@ fn gyeongsang_merges_eo_and_eu_says_ss_as_s_and_raises_marked_syllables() {
     let vowels = |w: &str, o: &Options| read(w, o).iter().map(|s| s.nucleus.ipa.clone()).collect::<Vec<_>>().join(".");
     // ㅓ ㅡ (and ㅕ) are one vowel [ɤ] (older Gyeongnam speakers, 이향원 외 2017); Seoul keeps them apart
     assert_eq!(vowels("거그겨", &gs), "ɤ.ɤ.ɤ");
+    // ㅐ and ㅔ are one vowel (Daegu, 장혜진·신지영 2006)
+    assert_eq!(vowels("개게", &gs), "e.e");
     assert_eq!(vowels("거그", &Options::default()), "ʊ.ɯ");
     // 쌀 is said as 살: no fortis
     assert_eq!(read("쌀", &gs)[0].onset[0], read("살", &gs)[0].onset[0]);
