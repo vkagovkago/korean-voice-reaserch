@@ -545,3 +545,13 @@ fn yanbian_stops_barely_move_the_vowels_pitch() {
     let between = word_syllables_with("아바", &Options { dialect: ne, ..Default::default() })[1].onset[0].onset_f0;
     assert_eq!(between, None); // a voiced lax stop between vowels
 }
+
+#[test]
+fn yanbian_e_is_higher_than_seouls_and_apart_from_ae() {
+    // Yanbian ㅔ 384/2139 Hz (men) against ㅐ 538/1900 (許秦): ㅔ takes [ɪ], ㅐ keeps [ɛ]
+    use chimera::phonetics::korean::{Dialect, Options, word_syllables_with};
+    let ne = Options { dialect: Dialect::Northeast, ..Default::default() };
+    let v = |w, o: &Options| word_syllables_with(w, o)[0].nucleus.ipa.clone();
+    assert_eq!((v("헤", &ne), v("해", &ne)), ("ɪ".to_string(), "ɛ".to_string()));
+    assert_eq!(v("헤", &Options::default()), "e");
+}

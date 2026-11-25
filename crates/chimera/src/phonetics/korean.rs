@@ -112,6 +112,12 @@ fn reading_vowel(letter: char, o: &Options) -> Option<(&'static str, &'static st
         (Central, 'ㅙ') => ("w", "e", false),
         (Southwest, 'ㅢ') => ("", "ɯ", false),
         (Northeast, 'ㅢ') => ("", "i", false),
+        // Yanbian keeps ㅐ and ㅔ apart, ㅔ higher than Seoul's: men 538/1900 and 384/2139, women
+        // 622/2431 and 446/2663 Hz (許秦, Tables 4-1/4-2). ㅔ takes [ɪ] (433/2070 male, against
+        // [e]'s 462/2022); ㅐ keeps [ɛ]: [e] fitted women's ㅐ but left men's ㅐ and ㅔ 29 Hz apart
+        (Northeast, 'ㅔ') => ("", "ɪ", false),
+        (Northeast, 'ㅖ') => ("j", "ɪ", false),
+        (Northeast, 'ㅞ') => ("w", "ɪ", false),
         // ㅐ and ㅔ are one vowel: Daegu women in their 40s say both at 599/2386 Hz (장혜진·
         // 신지영 2006, Table 3), [e]'s target (521/2394) rather than [ɛ]'s (710/2025)
         (Gyeongsang, 'ㅐ') => ("", "e", false),

@@ -285,6 +285,15 @@ pub fn run(ctx: &Ctx, a: &[String]) -> Result<(), String> {
                 first_vowel_formants(&plan, &out)
             });
             println!("허호 northeast ㅓ {:.0}/{:.0} ㅗ {:.0}/{:.0}  ㅓ higher (lower F1) {}", eo.0, eo.1, oo.0, oo.1, check(eo.0 < oo.0));
+            // Yanbian ㅐ and ㅔ apart but high: men 538/1900 and 384/2139, women 622/2431 and
+            // 446/2663 Hz (許秦, Tables 4-1/4-2): within 120 Hz of each, ㅐ above... below ㅔ in F1
+            let [ae, e] = ["해", "헤"].map(|w| {
+                let (plan, out, _) = say(word_syllables_with(w, &o), body, name, f0);
+                first_vowel_formants(&plan, &out)
+            });
+            let (tae, te) = if name == "male" { ((538.0, 1900.0), (384.0, 2139.0)) } else { ((622.0, 2431.0), (446.0, 2663.0)) };
+            let near = |m: (f64, f64), t: (f64, f64)| (m.0 - t.0).abs() < 120.0;
+            println!("해헤 northeast ㅐ {:.0}/{:.0} {} ㅔ {:.0}/{:.0} {}", ae.0, ae.1, check(near(ae, tae)), e.0, e.1, check(near(e, te) && e.0 < ae.0));
         }
         if name == "male" {
             // Jeju's ㆍ in an older man's speech: F1 549, F2 954 Hz (78-year-old, 이승진·최홍식 2018,
