@@ -26,7 +26,8 @@ for tests and the `chimera` CLI.
 ## What it does
 
 - **Play**: drag the tongue, lips and jaw in a live cutaway of the head; vowel pad, encoders,
-  computer keyboard and Web MIDI.
+  computer keyboard and Web MIDI. **Mic** mirrors your voice: the folds follow your pitch and the
+  tongue, jaw and lips your vowels (consonants aren't followed; silent unless **Echo** is on).
 - **Speak**: English text (CMUdict with a letter-to-sound fallback) or IPA, turned into
   gestures and prosody, with the gestural score and a consonant chart on screen. In IPA mode a
   notice under the box lists the symbols and marks the voice doesn't say (`chimera render speech`

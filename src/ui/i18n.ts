@@ -70,7 +70,7 @@ const KO: Record<string, string> = {
   "Left voice": "왼쪽 목소리", "Right voice": "오른쪽 목소리", "Held voice": "지속음",
   "Between two vowels": "두 모음 사이", "Vowel around it": "주변 모음",
   "F1 / F2": "F1 / F2", "Glottis to lips": "성문에서 입술까지", "Each tube unrolled": "펼쳐 놓은 각 관",
-  "Slowed 100×": "100배 느리게", Sound: "소리", Whisper: "속삭임", Stop: "정지", "Starting…": "시작 중…", Labels: "이름표", Measurements: "치수",
+  "Slowed 100×": "100배 느리게", Sound: "소리", Whisper: "속삭임", Mic: "마이크", "No mic": "마이크 없음", "No microphone": "마이크를 쓸 수 없음", Echo: "소리 듣기", Stop: "정지", "Starting…": "시작 중…", Labels: "이름표", Measurements: "치수",
   "Keep the breath on and shape the sound with the controls": "숨을 계속 내쉬며 조절 장치로 소리를 빚으세요",
   "Sing it again and record the face into a video": "다시 부르며 얼굴을 영상으로 녹화",
   "Vowel map. Drag to morph between vowels.": "모음 지도. 끌어서 모음 사이를 변형하세요.",

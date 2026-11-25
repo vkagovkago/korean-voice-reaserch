@@ -21,6 +21,7 @@ import type { Mode } from "./store.ts";
 import type { BodyName } from "../worklet/protocol.ts";
 import { BodyPad } from "./components/BodyPad.tsx";
 import { presetOf, PRESETS } from "./body.ts";
+import { setMirrorEcho, startMirror, stopMirror } from "./mirror.ts";
 
 // three.js only loads when the 3D view is first shown
 const AnatomyView3D = lazy(() => import("./components/AnatomyView3D.tsx").then((m) => ({ default: m.AnatomyView3D })));
@@ -142,18 +143,39 @@ function LeftScreen() {
   );
 }
 
-/** Play's main button: breathe (the voice sounds while it's on), and Whisper beside it. */
+/**
+ * Play's main button: breathe (the voice sounds while it's on), and Whisper beside it. Mic lets
+ * the model follow the speaker's voice (src/ui/mirror.ts); Echo makes it sound while it does.
+ */
 function PlayActions() {
   const hold = useStore((s) => s.hold);
   const toggleBreath = useStore((s) => s.toggleBreath);
   const voiced = useStore((s) => s.source.voiced);
   const setSource = useStore((s) => s.setSource);
+  const [mic, setMic] = useState<"off" | "on" | "failed">("off");
+  const [echo, setEcho] = useState(false);
+  // leaving Play stops listening
+  useEffect(() => () => stopMirror(), []);
+  const toggleMic = async () => {
+    if (mic === "on") {
+      stopMirror();
+      setMic("off");
+    } else setMic((await startMirror()) ? "on" : "failed");
+  };
   return (
     <ActionBar label="Voice" onSpace={() => void toggleBreath()}>
       <PrimaryButton label="Breathe" icon="breath" playing={hold} onClick={() => void toggleBreath()} />
       <Chip on={!voiced} onClick={() => setSource({ voiced: !voiced })}>
         Whisper
       </Chip>
+      <Chip on={mic === "on"} title={mic === "failed" ? "No microphone" : undefined} onClick={() => void toggleMic()}>
+        {mic === "failed" ? "No mic" : "Mic"}
+      </Chip>
+      {mic === "on" && (
+        <Chip on={echo} onClick={() => (setMirrorEcho(!echo), setEcho(!echo))}>
+          Echo
+        </Chip>
+      )}
     </ActionBar>
   );
 }
