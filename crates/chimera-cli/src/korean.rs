@@ -263,6 +263,15 @@ pub fn run(ctx: &Ctx, a: &[String]) -> Result<(), String> {
             let (r1, r2) = if name == "male" { (418.0..=538.0, 1048.0..=1408.0) } else { (453.0..=633.0, 1215.0..=1715.0) };
             println!("허 gyeongsang ㅓ/ㅡ F1 {f1:.0} {} F2 {f2:.0} {}", check(r1.contains(&f1)), check(r2.contains(&f2)));
         }
+        {
+            // Yanbian's ㅓ above its ㅗ: men 422/1103 and 481/780 Hz, women 496/1124 and 572/934 (許秦)
+            let o = Options { dialect: Dialect::Northeast, ..Default::default() };
+            let [eo, oo] = ["허", "호"].map(|w| {
+                let (plan, out, _) = say(word_syllables_with(w, &o), body, name, f0);
+                first_vowel_formants(&plan, &out)
+            });
+            println!("허호 northeast ㅓ {:.0}/{:.0} ㅗ {:.0}/{:.0}  ㅓ higher (lower F1) {}", eo.0, eo.1, oo.0, oo.1, check(eo.0 < oo.0));
+        }
         if name == "male" {
             // Jeju's ㆍ in an older man's speech: F1 549, F2 954 Hz (78-year-old, 이승진·최홍식 2018,
             // KSSS 10(1), Table 3); other 70s men 537/902 (신우봉·신지영 2012), 578/910 (김원보 2006),
@@ -314,6 +323,19 @@ mod tests {
             let (plan, out, _) = say(word_syllables_with("허", &o), body, name, f0);
             let (_, f2) = first_vowel_formants(&plan, &out);
             assert!(r2.contains(&f2), "{name}: {f2}");
+        }
+    }
+
+    #[test]
+    fn yanbian_eo_sits_above_its_o() {
+        // Yanbian: ㅓ 422/1103 over ㅗ 481/780 Hz (men; 許秦); the reading's [ʌ] rendered 579/1210
+        let o = Options { dialect: Dialect::Northeast, ..Default::default() };
+        for (body, name, f0) in VOICES {
+            let [eo, oo] = ["허", "호"].map(|w| {
+                let (plan, out, _) = say(word_syllables_with(w, &o), body, name, f0);
+                first_vowel_formants(&plan, &out)
+            });
+            assert!(eo.0 < oo.0, "{name}: ㅓ {eo:?} ㅗ {oo:?}");
         }
     }
 

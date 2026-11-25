@@ -150,7 +150,8 @@ entered and depend on the user for regional vocabulary, endings, and lexical ton
   North Korean speakers 21.9 and 81.1, Jung, Oh & Han 2025). In the northeast the stops barely
   move the vowel's pitch (`Segment::onset_f0`: lax -0.7, aspirated +0.7, tense -0.35 semitones;
   young Yanbian speakers, 오미라·양휘 2013), where Seoul's differ by about 5.
-- **northeast**: takes northern Hamgyong alveolar affricates and ㅢ as [i]. An acute or one
+- **northeast**: takes northern Hamgyong alveolar affricates and ㅢ as [i]. ㅓ is [ʊ], above ㅗ as
+  Yanbian speakers say it (men 422/1103 against 481/780 Hz; 許秦). An acute or one
   dot marks high (가〮), and two dots mark a long rise (가〯), following the three-way inventories
   described for Gilju, Seongjin and Dancheon. Tone marks are input annotations.
   [Northeastern dialect](https://encykorea.aks.ac.kr/Article/E0016526).

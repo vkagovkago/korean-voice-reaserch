@@ -111,6 +111,13 @@ fn reading_vowel(letter: char, o: &Options) -> Option<(&'static str, &'static st
         (Central, 'ㅒ') => ("j", "e", false),
         (Central, 'ㅙ') => ("w", "e", false),
         (Southwest, 'ㅢ') => ("", "ɯ", false),
+        // Yanbian (Hamgyong-based) ㅓ sits above ㅗ, the reverse of Seoul: men 422/1103 against
+        // 481/780 Hz, women 496/1124 against 572/934 (28 speakers aged 20-80, 許秦, Tables 4-1/4-2;
+        // Hamgyong speakers place the two the same). [ʊ]'s target (467/1126, 516/1229) is the
+        // nearest calibrated vowel; ㅗ stays [o]
+        (Northeast, 'ㅓ') => ("", "ʊ", false),
+        (Northeast, 'ㅕ') => ("j", "ʊ", false),
+        (Northeast, 'ㅝ') => ("w", "ʊ", false),
         (Northeast, 'ㅢ') => ("", "i", false),
         (Gyeongsang, 'ㅓ' | 'ㅡ') => ("", "ɤ", false),
         (Gyeongsang, 'ㅕ') => ("j", "ɤ", false),
