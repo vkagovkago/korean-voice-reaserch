@@ -108,6 +108,8 @@ describe("Korean stops' three laryngeal types, as the mirror hears them", () => 
     ["아 가 아", "k", "lax"], ["아 카 아", "k", "aspirated"], ["아 까 아", "k", "tense"],
     ["아 다 아", "t", "lax"], ["아 타 아", "t", "aspirated"], ["아 따 아", "t", "tense"],
     ["아 바 아", "p", "lax"], ["아 파 아", "p", "aspirated"], ["아 빠 아", "p", "tense"],
+    // affricates: a stop whose release frictes like [ɕ]
+    ["아 자 아", "tɕ", "lax"], ["아 차 아", "tɕ", "aspirated"], ["아 짜 아", "tɕ", "tense"],
   ];
   for (const { fs, body } of VOICES) {
     for (const [text, place, type] of CASES) {
@@ -177,6 +179,8 @@ describe("a tap (ㄹ between vowels)", () => {
   const CASES: [string, string[]][] = [
     ["아라 아", ["tap"]], ["아리 아", ["tap"]], ["아나 아", ["nasal"]], ["아마 아", ["nasal"]],
     ["알라 아", []], ["아아 아", []], ["아다 아", ["stop"]],
+    // no tap in a fricative's or an affricate's noise (both once read one)
+    ["아 사 아", ["fricative"]], ["아 짜 아", ["stop"]],
   ];
   for (const { fs, body } of VOICES) {
     for (const [text, want] of CASES) {

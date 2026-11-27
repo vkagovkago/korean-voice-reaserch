@@ -242,7 +242,7 @@ export function shape(x: ArrayLike<number>, start: number, n: number, fs: number
   return { centroid: den > 0 ? num / den : 0, high: tot > 0 ? hi / tot : 0, centroidHigh: hi > 0 ? numH / hi : 0 };
 }
 
-export type StopPlace = "p" | "t" | "k";
+export type StopPlace = "p" | "t" | "k" | "tɕ";
 /** what the stream tracker reports: a stop's place, or "ɾ" for a tap */
 export type Event = StopPlace | "ɾ";
 
@@ -262,6 +262,18 @@ export function burstPlace(x: ArrayLike<number>, start: number, fs: number): Sto
   if (high < BURST_LABIAL) return "p";
   if (high >= BURST_ALVEOLAR) return centroidHigh < 3000 ? "k" : "t";
   return "k";
+}
+
+/**
+ * An affricate (ㅈ ㅊ ㅉ, [tɕ]) is a stop whose release is followed by frication: over 10-30 ms
+ * after it, the energy above 1 kHz holds 0.68-0.90 of the total (centred 3.3-4.4 kHz, [ɕ]'s), where
+ * a [t]'s aspiration holds 0.25-0.51 and a [k]'s 0.43-0.62 (the engine's, both voices). Judged on
+ * the mean of three 512-sample windows from 10 ms on.
+ */
+function fricated(x: ArrayLike<number>, release: number, fs: number): boolean {
+  let sum = 0;
+  for (let w = 0; w < 3; w++) sum += shape(x, release + Math.round(fs * (0.01 + 0.01 * w)), 512, fs).high;
+  return sum / 3 >= 0.72;
 }
 
 /** A burst's share of energy above 1 kHz and its centroid there, over the release's ~25 ms. */
@@ -368,11 +380,15 @@ export class StopTracker {
    * A tap (ㄹ between vowels, [ɾ]): the voice dips briefly and deeply without falling silent, 10-35
    * ms under a quarter of the vowels (the engine's [ɾ] 20 ms at 0.08-0.23 of its vowel's peaks;
    * a nasal stays at 0.30-0.36, [l] 0.4 and up, a stop's closure goes silent), out of a vowel and
-   * back to one.
+   * back to one, voiced through it (low band at least 60% of the energy), and not within 80 ms of
+   * a stop's release.
    */
   private tapRun = 0;
   private tapFrom = false;
   private tapSilent = 0;
+  /** the dip's summed low-band share: a tap is voiced through it, the dips beside [s] or in an
+   * affricate's release are noise */
+  private tapLow = 0;
   /** hops left for the voice to come back after a dip that could be a tap */
   private tapWait = 0;
   private quietHops = 1e9;
@@ -433,13 +449,17 @@ export class StopTracker {
       // closure flickers, and a gap cut into pieces under 15 ms would hide the stop
       const quiet = e < FLOOR || e < 0.08 * this.ref;
       if (e > FLOOR && e < 0.25 * this.ref) {
-        if (this.tapRun === 0) this.tapFrom = this.loudAgo <= 3;
+        if (this.tapRun === 0) {
+          this.tapFrom = this.loudAgo <= 3;
+          this.tapLow = 0;
+        }
         this.tapRun++;
+        this.tapLow += low / Math.max(e, 1e-9);
         if (quiet) this.tapSilent++;
         this.tapWait = 0;
       } else {
         // the dip is over: the voice must be back (60% of the vowels) within 10 ms
-        if (this.tapRun >= 2 && this.tapRun <= 7 && this.tapFrom && this.tapSilent < 3) this.tapWait = 3;
+        if (this.tapRun >= 2 && this.tapRun <= 7 && this.tapFrom && this.tapSilent < 3 && this.tapLow / this.tapRun >= 0.6 && this.next >= this.refractory) this.tapWait = 3;
         if (this.tapWait > 0) {
           if (e >= 0.6 * this.ref) {
             out.push("ɾ");
@@ -515,9 +535,10 @@ export class StopTracker {
       this.loudAgo = e > FLOOR && e > 0.3 * this.ref ? 0 : this.loudAgo + 1;
       this.next += this.hop;
     }
-    if (this.pending >= 0 && this.afterHops >= 4 && end - this.pending >= 512 + this.hop) {
+    if (this.pending >= 0 && this.afterHops >= 4 && end - this.pending >= Math.round(0.03 * this.fs) + 512) {
       // from two hops before the first loud one: a labial's weak burst starts under the threshold
-      out.push(burstPlace(this.buf, Math.max(0, this.pending - 2 * this.hop - this.base), this.fs));
+      const at = this.pending - this.base;
+      out.push(fricated(this.buf, at, this.fs) ? "tɕ" : burstPlace(this.buf, Math.max(0, at - 2 * this.hop), this.fs));
       this.pending = -1;
     }
     // keep ~4096 samples of history before whatever is still to be read
@@ -602,9 +623,13 @@ export class Listener {
   private laryngealOf(heard: Heard): Laryngeal | undefined {
     const vot = this.stops.vot;
     if (vot < 0) return undefined;
-    if (vot < 35) return "tense";
+    if (vot < 35 && this.stop !== "tɕ") return "tense";
     if (heard.f0 <= 0 || this.logF0 === 0) return undefined;
     const st = (12 * (Math.log(heard.f0) - this.logF0)) / Math.LN2;
-    return st <= -1.3 ? "lax" : "aspirated";
+    if (st <= -1.3) return "lax";
+    // an affricate's VOT counts its frication too: the engine's ㅉ 70 ms, ㅊ 105 (ㅈ 35-85, told
+    // by its low onset pitch first)
+    if (this.stop === "tɕ") return vot < 80 ? "tense" : "aspirated";
+    return "aspirated";
   }
 }
