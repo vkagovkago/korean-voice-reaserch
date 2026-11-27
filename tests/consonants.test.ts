@@ -131,3 +131,42 @@ describe("Korean stops' three laryngeal types, as the mirror hears them", () => 
     }
   }
 });
+
+describe("a stop after a pause (no closure to hear)", () => {
+  // Real speech is silent before a phrase's first stop; the engine breathes in first, so the test
+  // cuts a mid-phrase render at the consonant (a stop's release, a fricative's or vowel's start)
+  // and puts 300 ms of silence before it
+  const { lyricsToSyllables, planPhrases } = require("../src/wasm/engine.ts") as typeof import("../src/wasm/engine.ts");
+  const CASES: [string, string | null][] = [
+    ["가", "k"], ["카", "k"], ["까", "k"], ["다", "t"], ["타", "t"], ["따", "t"],
+    // a labial burst is all under 1 kHz, like a breath's thump before a vowel: not heard here
+    ["바", null], ["파", null], ["빠", null],
+    ["아", null], ["사", null], ["하", null], ["나", null], ["마", null],
+  ];
+  for (const { fs, body } of VOICES) {
+    for (const [syl, place] of CASES) {
+      test(`${syl}: ${place ?? "no stop"} (${body.female ? "female" : "male"} ${fs})`, () => {
+        const segments = lyricsToSyllables(`아 ${syl} 아`).flatMap((s) => [...s.onset, s.nucleus, ...s.coda]);
+        const plan = planPhrases([{ segments }], { body, t0: 0.2 } as Parameters<typeof planPhrases>[1]);
+        const v = new WasmVoice(fs);
+        v.schedule(plan.gestures, 0);
+        const out = v.render(Math.round((plan.end + 0.3) * fs));
+        const seg = plan.segments[1];
+        // a stop from 2 ms before its release; anything else from 15 ms in (at its very start the
+        // cut would carry the preceding [a]'s tail, a burst-and-dip no real onset has)
+        const from = Math.round((seg.kind === "stop" ? seg.t1 - 0.002 : seg.t0 + 0.015) * fs);
+        const sig = new Float32Array(Math.round(0.3 * fs) + out.length - from);
+        sig.set(out.subarray(from), Math.round(0.3 * fs));
+        const listener = new Listener(fs);
+        const hop = Math.round(fs / 60);
+        const stops = new Set<string>();
+        for (let end = 2048; end <= sig.length; end += hop) {
+          const frame = sig.subarray(end - 2048, end);
+          const snd = listener.push(sig.subarray(end - hop, end), frame, hear(frame, fs));
+          if (snd.kind === "stop") stops.add(snd.place);
+        }
+        expect([...stops]).toEqual(place ? [place] : []);
+      });
+    }
+  }
+});

@@ -256,6 +256,14 @@ const FLOOR = 0.003;
  * ponytail: thresholds from synthetic speech and textbook bands; tune on real recordings
  */
 export function burstPlace(x: ArrayLike<number>, start: number, fs: number): StopPlace {
+  const { high, centroidHigh } = burstShape(x, start, fs);
+  if (high < BURST_LABIAL) return "p";
+  if (high >= BURST_ALVEOLAR) return centroidHigh < 3000 ? "k" : "t";
+  return "k";
+}
+
+/** A burst's share of energy above 1 kHz and its centroid there, over the release's ~25 ms. */
+function burstShape(x: ArrayLike<number>, start: number, fs: number): { high: number; centroidHigh: number } {
   // four 512-sample windows 5 ms apart, energy-weighted: where the release falls among them
   // (the tracker finds it within a hop or two) matters less than in any one window
   const step = Math.round(fs * 0.005);
@@ -270,10 +278,7 @@ export function burstPlace(x: ArrayLike<number>, start: number, fs: number): Sto
       if (f > 1000) (hi += p[k]), (numH += f * p[k]);
     }
   }
-  const high = tot > 0 ? hi / tot : 0, centroidHigh = hi > 0 ? numH / hi : 0;
-  if (high < BURST_LABIAL) return "p";
-  if (high >= BURST_ALVEOLAR) return centroidHigh < 3000 ? "k" : "t";
-  return "k";
+  return { high: tot > 0 ? hi / tot : 0, centroidHigh: hi > 0 ? numH / hi : 0 };
 }
 const BURST_LABIAL = 0.08;
 const BURST_ALVEOLAR = 0.37;
@@ -346,6 +351,24 @@ export class StopTracker {
   private relAt = -1;
   private relHops = 0;
   private votMs = -1;
+  /**
+   * A stop after a pause has no closure to hear: the release starts the sound. So after 250 ms of
+   * silence, an onset is a stop if its first 15 ms (the burst) are followed within 50 ms by a dip
+   * under 70% of them (the aspiration, or the gap before a tense stop's voice: one 5 ms hop in the
+   * engine's 까) and then, within
+   * 100 ms of the onset, by the voice (low band back: at least 70% of the energy at twice the dip,
+   * or 50% at four times), and if its burst reaches above 1 kHz (share >= 0.08). [s] swells and
+   * [h] stays level, so neither dips; a vowel's or nasal's start, a breath's thump before a phrase,
+   * and a labial burst are all under 1 kHz, so a phrase-initial [p] isn't heard.
+   * Set on the engine's 가 카 까 다 타 따 아 사 하 나 마; `init` is the onset (absolute index).
+   */
+  private quietHops = 1e9;
+  private init = -1;
+  private initHops = 0;
+  private initPeak = 0;
+  private initDip = Infinity;
+  private initRun = 0;
+  private initDipped = false;
   /** absolute index before which no new release counts: a velar burst, a short silence, then the
    * voice's onset read as two stops */
   private refractory = 0;
@@ -367,7 +390,7 @@ export class StopTracker {
   }
   /** a release is heard but its burst not yet read */
   get releasing(): boolean {
-    return this.pending >= 0;
+    return this.pending >= 0 || this.init >= 0;
   }
   push(x: ArrayLike<number>): StopPlace[] {
     for (let i = 0; i < x.length; i++) this.buf.push(x[i]);
@@ -395,6 +418,41 @@ export class StopTracker {
       else this.ref *= Math.exp(-0.005 / 2);
       // within a gap, anything short of a release (15% of the vowels) is still the closure: a
       // closure flickers, and a gap cut into pieces under 15 ms would hide the stop
+      const quiet = e < FLOOR || e < 0.08 * this.ref;
+      if (this.init >= 0) {
+        const frac = low / Math.max(e, 1e-9);
+        const h = ++this.initHops;
+        if (h <= 3) this.initPeak = Math.max(this.initPeak, e);
+        else {
+          if (h <= 10) {
+            this.initDip = Math.min(this.initDip, e);
+            this.initRun = e < 0.7 * this.initPeak ? this.initRun + 1 : 0;
+            if (this.initRun >= 1) this.initDipped = true;
+          }
+          const dipped = this.initDipped;
+          if (dipped && ((frac > 0.7 && e >= 2 * this.initDip) || (frac > 0.5 && e >= 4 * this.initDip))) {
+            // the voice is back: a stop, released at the onset, if its burst reaches above 1 kHz.
+            // A breath before a phrase's first vowel thumps, dips and voices just as a stop does,
+            // all under 1 kHz; so does a labial burst, so a phrase-initial [p] isn't heard
+            const at = Math.max(0, this.init - 2 * this.hop - this.base);
+            if (burstShape(this.buf, at, this.fs).high >= BURST_LABIAL) {
+              this.pending = this.init;
+              this.afterHops = 4;
+              this.refractory = this.next + Math.round(0.08 * this.fs);
+              this.votMs = (h - 1) * 5;
+            }
+            this.init = -1;
+          } else if (h > 20 || (h > 10 && !dipped)) this.init = -1;
+        }
+      } else if (!quiet && this.quietHops >= 50 && this.pending < 0) {
+        this.init = this.next;
+        this.initHops = 1;
+        this.initPeak = e;
+        this.initDip = Infinity;
+        this.initRun = 0;
+        this.initDipped = false;
+      }
+      this.quietHops = quiet ? this.quietHops + 1 : 0;
       if (this.pending >= 0 && this.afterHops < 4) {
         this.after += e;
         if (++this.afterHops === 4 && this.after / 4 < 0.15 * this.ref) {
@@ -432,8 +490,9 @@ export class StopTracker {
       out.push(burstPlace(this.buf, Math.max(0, this.pending - 2 * this.hop - this.base), this.fs));
       this.pending = -1;
     }
-    // keep ~4096 samples of history
-    const drop = Math.max(0, Math.min(this.next, this.pending >= 0 ? this.pending : this.next) - this.base - 4096);
+    // keep ~4096 samples of history before whatever is still to be read
+    const keep = Math.min(this.next, this.pending >= 0 ? this.pending : this.next, this.init >= 0 ? this.init : this.next);
+    const drop = Math.max(0, keep - this.base - 4096);
     if (drop > 0) {
       this.buf.splice(0, drop);
       this.base += drop;
