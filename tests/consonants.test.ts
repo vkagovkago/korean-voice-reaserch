@@ -99,3 +99,35 @@ describe("the mirror's frame loop over running speech", () => {
     });
   }
 });
+
+describe("Korean stops' three laryngeal types, as the mirror hears them", () => {
+  const { lyricsToSyllables, planPhrases } = require("../src/wasm/engine.ts") as typeof import("../src/wasm/engine.ts");
+  // the stop's vowel mid-phrase: the planner's statement-final fall (to 0.82 of the speaking pitch)
+  // replaces the last vowel's onset pitch, and with it the lax/aspirated cue
+  const CASES: [string, string, string][] = [
+    ["아 가 아", "k", "lax"], ["아 카 아", "k", "aspirated"], ["아 까 아", "k", "tense"],
+    ["아 다 아", "t", "lax"], ["아 타 아", "t", "aspirated"], ["아 따 아", "t", "tense"],
+    ["아 바 아", "p", "lax"], ["아 파 아", "p", "aspirated"], ["아 빠 아", "p", "tense"],
+  ];
+  for (const { fs, body } of VOICES) {
+    for (const [text, place, type] of CASES) {
+      test(`${text}: ${place}, ${type} (${body.female ? "female" : "male"} ${fs})`, () => {
+        const segments = lyricsToSyllables(text).flatMap((s) => [...s.onset, s.nucleus, ...s.coda]);
+        const plan = planPhrases([{ segments }], { body, t0: 0.2 } as Parameters<typeof planPhrases>[1]);
+        const v = new WasmVoice(fs);
+        v.schedule(plan.gestures, 0);
+        const out = v.render(Math.round((plan.end + 0.3) * fs));
+        const listener = new Listener(fs);
+        const hop = Math.round(fs / 60);
+        const stops: { place: string; laryngeal?: string }[] = [];
+        for (let end = 2048; end <= out.length; end += hop) {
+          const frame = out.subarray(end - 2048, end);
+          const snd = listener.push(out.subarray(end - hop, end), frame, hear(frame, fs));
+          if (snd.kind === "stop") stops.push({ place: snd.place, laryngeal: snd.laryngeal });
+        }
+        expect(new Set(stops.map((s) => s.place))).toEqual(new Set([place]));
+        expect(stops.map((s) => s.laryngeal).filter(Boolean).at(-1)).toBe(type);
+      });
+    }
+  }
+});

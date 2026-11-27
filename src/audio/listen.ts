@@ -244,6 +244,9 @@ export function shape(x: ArrayLike<number>, start: number, n: number, fs: number
 
 export type StopPlace = "p" | "t" | "k";
 
+/** a hop under this RMS (-50 dBFS) is silence */
+const FLOOR = 0.003;
+
 /**
  * A stop's place from ~25 ms around its release, `start` 5-15 ms before it (Stevens & Blumstein's
  * burst shapes; thresholds set on the engine's own [apa ata aka], male and female, alone and in
@@ -335,11 +338,28 @@ export class StopTracker {
   private after = 0;
   private afterHops = 0;
   private pendingGap = 0;
+  /** the voice's return after a release: a one-pole low-pass (500 Hz) and its vowel reference;
+   * voicing brings back the low band, aspiration doesn't */
+  private lp = 0;
+  private lpA: number;
+  private refLow = 0;
+  private relAt = -1;
+  private relHops = 0;
+  private votMs = -1;
   /** absolute index before which no new release counts: a velar burst, a short silence, then the
    * voice's onset read as two stops */
   private refractory = 0;
   constructor(private readonly fs: number) {
     this.hop = Math.round(fs * 0.005);
+    this.lpA = Math.exp((-2 * Math.PI * 500) / fs);
+  }
+  /**
+   * The last release's voice onset time (ms): the first hop from 15 ms on whose low band is back
+   * to 40% of the vowels' (the burst itself carries some); -1 until it's heard. The engine's
+   * Korean tense, lax and aspirated stops read ~20, ~70 and ~70-75.
+   */
+  get vot(): number {
+    return this.votMs;
   }
   /** the recent vowels' RMS (decays slowly) */
   get level(): number {
@@ -355,24 +375,38 @@ export class StopTracker {
     const end = this.base + this.buf.length;
     while (this.next + this.hop <= end) {
       const a = this.next - this.base;
-      let s = 0;
-      for (let i = a; i < a + this.hop; i++) s += this.buf[i] * this.buf[i];
+      let s = 0, sl = 0;
+      for (let i = a; i < a + this.hop; i++) {
+        s += this.buf[i] * this.buf[i];
+        this.lp = (1 - this.lpA) * this.buf[i] + this.lpA * this.lp;
+        sl += this.lp * this.lp;
+      }
       const e = Math.sqrt(s / this.hop);
-      // the reference follows loud stretches fast and decays over ~2 s
-      this.ref = e > this.ref ? this.ref + 0.3 * (e - this.ref) : this.ref * Math.exp(-0.005 / 2);
+      const low = Math.sqrt(sl / this.hop);
+      this.refLow = low > this.refLow ? this.refLow + 0.3 * (low - this.refLow) : this.refLow * Math.exp(-0.005 / 2);
+      if (this.relAt >= 0 && this.votMs < 0) {
+        if (this.relHops >= 3 && low > 0.4 * this.refLow) this.votMs = this.relHops * 5;
+        else if (++this.relHops > 40) this.relAt = -1;
+        if (this.votMs >= 0) this.relAt = -1;
+      }
+      // the reference follows loud stretches fast and decays over ~2 s; under -50 dBFS is silence
+      // whatever the reference (at the start it is 0, and a breath's hiss would count as loud)
+      if (e > FLOOR) this.ref = e > this.ref ? this.ref + 0.3 * (e - this.ref) : this.ref * Math.exp(-0.005 / 2);
+      else this.ref *= Math.exp(-0.005 / 2);
       // within a gap, anything short of a release (15% of the vowels) is still the closure: a
       // closure flickers, and a gap cut into pieces under 15 ms would hide the stop
       if (this.pending >= 0 && this.afterHops < 4) {
         this.after += e;
         if (++this.afterHops === 4 && this.after / 4 < 0.15 * this.ref) {
           this.pending = -1;
+          this.relAt = -1;
           this.refractory = 0;
           this.gapHops = this.pendingGap + 4;
           this.next += this.hop;
           continue;
         }
       }
-      const silent = e < 0.08 * this.ref || (this.gapHops > 0 && e <= 0.15 * this.ref);
+      const silent = e < FLOOR || e < 0.08 * this.ref || (this.gapHops > 0 && e <= 0.15 * this.ref);
       if (silent) {
         if (this.gapHops === 0) this.gapAfterLoud = this.loudAgo <= 12;
         this.gapHops++;
@@ -384,10 +418,13 @@ export class StopTracker {
           this.after = 0;
           this.afterHops = 0;
           this.pendingGap = this.gapHops;
+          this.relAt = this.next;
+          this.relHops = 0;
+          this.votMs = -1;
         }
         this.gapHops = 0;
       }
-      this.loudAgo = e > 0.3 * this.ref ? 0 : this.loudAgo + 1;
+      this.loudAgo = e > FLOOR && e > 0.3 * this.ref ? 0 : this.loudAgo + 1;
       this.next += this.hop;
     }
     if (this.pending >= 0 && this.afterHops >= 4 && end - this.pending >= 512 + this.hop) {
@@ -405,7 +442,8 @@ export class StopTracker {
   }
 }
 
-export type Heard2 = Sound | { kind: "stop"; place: StopPlace };
+export type Laryngeal = "lax" | "aspirated" | "tense";
+export type Heard2 = Sound | { kind: "stop"; place: StopPlace; laryngeal?: Laryngeal };
 
 /**
  * One frame's call, as the mirror makes it: a stop once its burst is read, held `hold` seconds
@@ -415,8 +453,12 @@ export type Heard2 = Sound | { kind: "stop"; place: StopPlace };
  */
 export class Listener {
   private readonly stops: StopTracker;
-  private left = 0;
+  /** seconds of the stop's hold left (negative: past it; none heard yet: -Infinity) */
+  private left = -Infinity;
   private stop: StopPlace = "p";
+  private laryngeal: Laryngeal | undefined;
+  /** the speaker's running mean log pitch over vowels */
+  private logF0 = 0;
   constructor(private readonly fs: number, private readonly hold = 0.08) {
     this.stops = new StopTracker(fs);
   }
@@ -428,15 +470,18 @@ export class Listener {
     const found = this.stops.push(fresh);
     if (found.length) {
       this.stop = found[found.length - 1];
+      this.laryngeal = undefined;
       this.left = this.hold;
       return { kind: "stop", place: this.stop };
     }
-    if (this.left > 0) {
+    if (this.left > 0 || (this.laryngeal === undefined && this.left > -0.07)) {
       this.left -= fresh.length / this.fs;
-      return { kind: "stop", place: this.stop };
+      this.laryngeal ??= this.laryngealOf(heard);
+      return { kind: "stop", place: this.stop, laryngeal: this.laryngeal };
     }
     if (this.stops.releasing) return this.said;
     const now = soundOf(frame, this.fs, heard, Math.max(this.stops.level, 0.01));
+    if (now.kind === "vowel" && heard.f0 > 0) this.logF0 = this.logF0 === 0 ? Math.log(heard.f0) : this.logF0 + 0.05 * (Math.log(heard.f0) - this.logF0);
     // a nasal or fricative counts once two frames running (~33 ms) agree: a tongue tip closing for
     // [t] makes a frame of [ɕ]-like noise; a real [s] or [m] lasts several
     const key = JSON.stringify(now);
@@ -448,4 +493,21 @@ export class Listener {
   }
   private last = "";
   private said: Heard2 = { kind: "silence" };
+
+  /**
+   * Once the voice is back after a release: tense if it came within 35 ms (Seoul 12-24, the
+   * engine ~20); otherwise lax if its pitch starts 1.3 semitones or more under the speaker's mean,
+   * aspirated if not (Seoul's aspirated and lax stops have merged in VOT and differ by ~5
+   * semitones of onset pitch, Beckman et al. 2014; the engine's start -2.9 and +0.3).
+   * ponytail: a phrase-final fall lowers an aspirated onset too; judge against the phrase's own
+   * pitch track if that misreads
+   */
+  private laryngealOf(heard: Heard): Laryngeal | undefined {
+    const vot = this.stops.vot;
+    if (vot < 0) return undefined;
+    if (vot < 35) return "tense";
+    if (heard.f0 <= 0 || this.logF0 === 0) return undefined;
+    const st = (12 * (Math.log(heard.f0) - this.logF0)) / Math.LN2;
+    return st <= -1.3 ? "lax" : "aspirated";
+  }
 }

@@ -66,6 +66,9 @@ interface Running {
   heardFor: number;
   artic: Partial<HumanArtic>;
   listener: Listener;
+  /** the voice's own tension and breathiness, put back after a tense or lax stop */
+  tension: number;
+  breathiness: number;
 }
 
 let run: Running | null = null;
@@ -94,7 +97,7 @@ export async function startMirror(): Promise<boolean> {
   const analyser = ctx.createAnalyser();
   analyser.fftSize = 2048;
   ctx.createMediaStreamSource(stream).connect(analyser);
-  run = { ctx, stream, analyser, buf: new Float32Array(analyser.fftSize), raf: 0, last: performance.now(), logF0: 0, heardFor: 0, artic: {}, listener: new Listener(ctx.sampleRate) };
+  run = { ctx, stream, analyser, buf: new Float32Array(analyser.fftSize), raf: 0, last: performance.now(), logF0: 0, heardFor: 0, artic: {}, listener: new Listener(ctx.sampleRate), tension: useStore.getState().source.tension, breathiness: useStore.getState().source.breathiness };
   engine.setVolume(echo ? useStore.getState().volume : 0);
   useStore.getState().setSource({ voiced: true });
   run.raf = requestAnimationFrame(step);
@@ -106,11 +109,12 @@ export function stopMirror(): void {
   cancelAnimationFrame(run.raf);
   for (const t of run.stream.getTracks()) t.stop();
   void run.ctx.close();
+  const { tension, breathiness } = run;
   run = null;
   const s = useStore.getState();
   engine.gate(s.hold ? 1 : 0);
   engine.setVolume(s.volume);
-  s.setSource({ voiced: true });
+  s.setSource({ voiced: true, tension, breathiness });
 }
 
 function step(now: number): void {
@@ -127,10 +131,19 @@ function step(now: number): void {
   const h = hear(r.buf, fs);
   const sound = r.listener.push(r.buf.subarray(r.buf.length - fresh), r.buf, h);
   if (sound.kind === "stop") {
-    // its closure, shown once its release is heard (the closure itself is silent)
+    // its closure, shown once its release is heard (the closure itself is silent); the folds part
+    // until the voice is back (aspiration), then start pressed after a tense stop, breathy after
+    // a lax one
     snap(r, poseOf(sound.place, s.body));
+    engine.gate(1);
+    if (h.f0 <= 0) s.setSource({ voiced: false });
+    else {
+      const press = sound.laryngeal === "tense", slack = sound.laryngeal === "lax";
+      s.setSource({ f0: Math.min(1000, Math.max(60, h.f0)), voiced: true, tension: press ? 0.9 : r.tension, breathiness: slack ? 0.6 : r.breathiness });
+    }
     return;
   }
+  if (s.source.tension !== r.tension || s.source.breathiness !== r.breathiness) s.setSource({ tension: r.tension, breathiness: r.breathiness });
   if (h.rms < SPEAKING || sound.kind === "silence") {
     engine.gate(0);
     return;
