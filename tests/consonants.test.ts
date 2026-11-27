@@ -170,3 +170,32 @@ describe("a stop after a pause (no closure to hear)", () => {
     }
   }
 });
+
+describe("a tap (ㄹ between vowels)", () => {
+  const { lyricsToSyllables, planPhrases } = require("../src/wasm/engine.ts") as typeof import("../src/wasm/engine.ts");
+  // what the mirror reports over the word: taps, stops, nasals
+  const CASES: [string, string[]][] = [
+    ["아라 아", ["tap"]], ["아리 아", ["tap"]], ["아나 아", ["nasal"]], ["아마 아", ["nasal"]],
+    ["알라 아", []], ["아아 아", []], ["아다 아", ["stop"]],
+  ];
+  for (const { fs, body } of VOICES) {
+    for (const [text, want] of CASES) {
+      test(`${text}: ${want.join(", ") || "nothing"} (${body.female ? "female" : "male"} ${fs})`, () => {
+        const segments = lyricsToSyllables(text).flatMap((s) => [...s.onset, s.nucleus, ...s.coda]);
+        const plan = planPhrases([{ segments }], { body, t0: 0.2 } as Parameters<typeof planPhrases>[1]);
+        const v = new WasmVoice(fs);
+        v.schedule(plan.gestures, 0);
+        const out = v.render(Math.round((plan.end + 0.3) * fs));
+        const listener = new Listener(fs);
+        const hop = Math.round(fs / 60);
+        const kinds = new Set<string>();
+        for (let end = 2048; end <= out.length; end += hop) {
+          const frame = out.subarray(end - 2048, end);
+          const k = listener.push(out.subarray(end - hop, end), frame, hear(frame, fs)).kind;
+          if (k !== "vowel" && k !== "silence") kinds.add(k);
+        }
+        expect([...kinds].sort()).toEqual([...want].sort());
+      });
+    }
+  }
+});

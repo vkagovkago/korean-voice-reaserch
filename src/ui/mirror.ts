@@ -143,6 +143,11 @@ function step(now: number): void {
     }
     return;
   }
+  if (sound.kind === "tap") {
+    // the tongue tip flicks up to the ridge (shown just after: a tap is over before it's heard)
+    snap(r, poseOf("ɾ", s.body));
+    return;
+  }
   if (s.source.tension !== r.tension || s.source.breathiness !== r.breathiness) s.setSource({ tension: r.tension, breathiness: r.breathiness });
   if (h.rms < SPEAKING || sound.kind === "silence") {
     engine.gate(0);

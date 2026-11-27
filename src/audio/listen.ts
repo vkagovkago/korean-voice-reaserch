@@ -243,6 +243,8 @@ export function shape(x: ArrayLike<number>, start: number, n: number, fs: number
 }
 
 export type StopPlace = "p" | "t" | "k";
+/** what the stream tracker reports: a stop's place, or "ɾ" for a tap */
+export type Event = StopPlace | "ɾ";
 
 /** a hop under this RMS (-50 dBFS) is silence */
 const FLOOR = 0.003;
@@ -362,6 +364,17 @@ export class StopTracker {
    * and a labial burst are all under 1 kHz, so a phrase-initial [p] isn't heard.
    * Set on the engine's 가 카 까 다 타 따 아 사 하 나 마; `init` is the onset (absolute index).
    */
+  /**
+   * A tap (ㄹ between vowels, [ɾ]): the voice dips briefly and deeply without falling silent, 10-35
+   * ms under a quarter of the vowels (the engine's [ɾ] 20 ms at 0.08-0.23 of its vowel's peaks;
+   * a nasal stays at 0.30-0.36, [l] 0.4 and up, a stop's closure goes silent), out of a vowel and
+   * back to one.
+   */
+  private tapRun = 0;
+  private tapFrom = false;
+  private tapSilent = 0;
+  /** hops left for the voice to come back after a dip that could be a tap */
+  private tapWait = 0;
   private quietHops = 1e9;
   private init = -1;
   private initHops = 0;
@@ -392,9 +405,9 @@ export class StopTracker {
   get releasing(): boolean {
     return this.pending >= 0 || this.init >= 0;
   }
-  push(x: ArrayLike<number>): StopPlace[] {
+  push(x: ArrayLike<number>): Event[] {
     for (let i = 0; i < x.length; i++) this.buf.push(x[i]);
-    const out: StopPlace[] = [];
+    const out: Event[] = [];
     const end = this.base + this.buf.length;
     while (this.next + this.hop <= end) {
       const a = this.next - this.base;
@@ -419,6 +432,23 @@ export class StopTracker {
       // within a gap, anything short of a release (15% of the vowels) is still the closure: a
       // closure flickers, and a gap cut into pieces under 15 ms would hide the stop
       const quiet = e < FLOOR || e < 0.08 * this.ref;
+      if (e > FLOOR && e < 0.25 * this.ref) {
+        if (this.tapRun === 0) this.tapFrom = this.loudAgo <= 3;
+        this.tapRun++;
+        if (quiet) this.tapSilent++;
+        this.tapWait = 0;
+      } else {
+        // the dip is over: the voice must be back (60% of the vowels) within 10 ms
+        if (this.tapRun >= 2 && this.tapRun <= 7 && this.tapFrom && this.tapSilent < 3) this.tapWait = 3;
+        if (this.tapWait > 0) {
+          if (e >= 0.6 * this.ref) {
+            out.push("ɾ");
+            this.tapWait = 0;
+          } else this.tapWait--;
+        }
+        this.tapRun = 0;
+        this.tapSilent = 0;
+      }
       if (this.init >= 0) {
         const frac = low / Math.max(e, 1e-9);
         const h = ++this.initHops;
@@ -502,7 +532,7 @@ export class StopTracker {
 }
 
 export type Laryngeal = "lax" | "aspirated" | "tense";
-export type Heard2 = Sound | { kind: "stop"; place: StopPlace; laryngeal?: Laryngeal };
+export type Heard2 = Sound | { kind: "stop"; place: StopPlace; laryngeal?: Laryngeal } | { kind: "tap" };
 
 /**
  * One frame's call, as the mirror makes it: a stop once its burst is read, held `hold` seconds
@@ -518,6 +548,8 @@ export class Listener {
   private laryngeal: Laryngeal | undefined;
   /** the speaker's running mean log pitch over vowels */
   private logF0 = 0;
+  /** seconds of a tap's showing left: it's over before it's heard, so it's shown just after */
+  private tapLeft = 0;
   constructor(private readonly fs: number, private readonly hold = 0.08) {
     this.stops = new StopTracker(fs);
   }
@@ -526,19 +558,25 @@ export class Listener {
   }
   /** `fresh`: the samples since the last call; `frame`: the latest ~2048 (ending with them). */
   push(fresh: ArrayLike<number>, frame: ArrayLike<number>, heard: Heard): Heard2 {
-    const found = this.stops.push(fresh);
+    const events = this.stops.push(fresh);
+    const found = events.filter((e): e is StopPlace => e !== "ɾ");
     if (found.length) {
       this.stop = found[found.length - 1];
       this.laryngeal = undefined;
       this.left = this.hold;
       return { kind: "stop", place: this.stop };
     }
+    if (events.includes("ɾ")) this.tapLeft = 0.04;
     if (this.left > 0 || (this.laryngeal === undefined && this.left > -0.07)) {
       this.left -= fresh.length / this.fs;
       this.laryngeal ??= this.laryngealOf(heard);
       return { kind: "stop", place: this.stop, laryngeal: this.laryngeal };
     }
     if (this.stops.releasing) return this.said;
+    if (this.tapLeft > 0) {
+      this.tapLeft -= fresh.length / this.fs;
+      return { kind: "tap" };
+    }
     const now = soundOf(frame, this.fs, heard, Math.max(this.stops.level, 0.01));
     if (now.kind === "vowel" && heard.f0 > 0) this.logF0 = this.logF0 === 0 ? Math.log(heard.f0) : this.logF0 + 0.05 * (Math.log(heard.f0) - this.logF0);
     // a nasal or fricative counts once two frames running (~33 ms) agree: a tongue tip closing for
