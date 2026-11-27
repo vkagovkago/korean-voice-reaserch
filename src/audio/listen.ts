@@ -250,31 +250,58 @@ export type Event = StopPlace | "ɾ";
 const FLOOR = 0.003;
 
 /**
- * A stop's place from ~25 ms around its release, `start` 5-15 ms before it (Stevens & Blumstein's
- * burst shapes; thresholds set on the engine's own [apa ata aka], male and female, alone and in
- * running speech): the share of energy above 1 kHz is 0.008-0.02 for a labial, 0.15-0.30 for a
- * velar, 0.44-0.60 for an alveolar (split at 0.37). A burst mostly above 1 kHz but centred under 3 kHz is velar
- * too: speech's compact 1.5-3 kHz velar peak (the engine's velar is high and sparse instead).
- * ponytail: thresholds from synthetic speech and textbook bands; tune on real recordings
+ * A stop's place from its release, by linear discriminants trained on real speech: 3,631 released,
+ * prevocalic stops and affricates of the TSP database (23 adult English speakers, the TSP
+ * alignment), each at the biggest energy rise in its span. Features: the log share of energy in
+ * seven bands to 10 kHz over four 512-sample windows 5 ms apart from 10 ms before the release, and
+ * the share above 1 kHz over 10-30 ms after it (an affricate's frication). Held-out speakers: 67%
+ * right (labial 63%, alveolar 77%, velar 53%, affricate 47%); the engine-tuned thresholds this
+ * replaces got 33% on them. Class means: labial half under 500 Hz, velar a 1-2 kHz peak, alveolar
+ * high (3-7 kHz), affricate 2-4.5 kHz and fricated.
+ * Refit: tools/tsp/mirror-eval.ts reports the place accuracy the whole listener gets.
  */
-export function burstPlace(x: ArrayLike<number>, start: number, fs: number): StopPlace {
-  const { high, centroidHigh } = burstShape(x, start, fs);
-  if (high < BURST_LABIAL) return "p";
-  if (high >= BURST_ALVEOLAR) return centroidHigh < 3000 ? "k" : "t";
-  return "k";
+export function stopPlace(x: ArrayLike<number>, release: number, fs: number): StopPlace {
+  const step = Math.round(fs * 0.005);
+  const band = new Array<number>(PLACE_BANDS.length - 1).fill(0);
+  let tot = 0;
+  for (let w = 0; w < 4; w++) {
+    const p = powerSpectrum(x, release - 2 * step + w * step, 512);
+    for (let k = 1; k < p.length; k++) {
+      const f = (k * fs) / 512;
+      if (f >= 10000) break;
+      let b = 0;
+      while (f >= PLACE_BANDS[b + 1]) b++;
+      band[b] += p[k];
+      tot += p[k];
+    }
+  }
+  let fric = 0;
+  for (let w = 0; w < 3; w++) fric += shape(x, release + Math.round(fs * (0.01 + 0.01 * w)), 512, fs).high;
+  const feat = [...band.map((e) => Math.log(e / Math.max(tot, 1e-20) + 1e-4)), fric / 3];
+  let best: StopPlace = "t", bestScore = -Infinity;
+  for (const [place, w, b] of PLACE_LDA) {
+    const score = w.reduce((a, wi, i) => a + wi * feat[i], b);
+    if (score > bestScore) (bestScore = score), (best = place);
+  }
+  return best;
 }
-
 /**
- * An affricate (ㅈ ㅊ ㅉ, [tɕ]) is a stop whose release is followed by frication: over 10-30 ms
- * after it, the energy above 1 kHz holds 0.68-0.90 of the total (centred 3.3-4.4 kHz, [ɕ]'s), where
- * a [t]'s aspiration holds 0.25-0.51 and a [k]'s 0.43-0.62 (the engine's, both voices). Judged on
- * the mean of three 512-sample windows from 10 ms on.
+ * Frication after a release (an affricate's): the share above 1 kHz over 10-30 ms after it, at
+ * least 0.72 (the engine's affricates 0.68-0.90, stops 0.25-0.62; the real speakers' affricates
+ * average 0.78). Kept apart from the place: the laryngeal rule needs it whatever place is read.
  */
 function fricated(x: ArrayLike<number>, release: number, fs: number): boolean {
   let sum = 0;
   for (let w = 0; w < 3; w++) sum += shape(x, release + Math.round(fs * (0.01 + 0.01 * w)), 512, fs).high;
   return sum / 3 >= 0.72;
 }
+const PLACE_BANDS = [0, 500, 1000, 2000, 3000, 4500, 7000, 10000];
+const PLACE_LDA: [StopPlace, number[], number][] = [
+  ["p", [-1.6388, -1.8288, -0.4673, -0.4717, -0.5317, 0.3265, -2.9165, 8.6935], -15.3829],
+  ["t", [-2.0848, -1.8844, -1.033, -0.5576, -0.11, 0.5118, -3.1667, 8.94], -16.4688],
+  ["k", [-3.0065, -1.989, -0.1996, -0.1942, -0.5757, -0.0866, -2.9541, 9.1933], -19.6863],
+  ["tɕ", [-2.762, -2.2897, -1.3174, -0.085, 0.0711, 0.3197, -4.0372, 13.0101], -28.2562],
+];
 
 /** A burst's share of energy above 1 kHz and its centroid there, over the release's ~25 ms. */
 function burstShape(x: ArrayLike<number>, start: number, fs: number): { high: number; centroidHigh: number } {
@@ -294,27 +321,69 @@ function burstShape(x: ArrayLike<number>, start: number, fs: number): { high: nu
   }
   return { high: tot > 0 ? hi / tot : 0, centroidHigh: hi > 0 ? numH / hi : 0 };
 }
+/** a burst with less of its energy above 1 kHz is a labial's, or a breath's thump */
 const BURST_LABIAL = 0.08;
-const BURST_ALVEOLAR = 0.37;
 
 export type Sound =
   | { kind: "silence" }
   | { kind: "vowel" }
   | { kind: "nasal"; place: "m" | "n" | "ŋ" }
+  | { kind: "lateral" }
   | { kind: "fricative"; place: "s" | "ɕ" | "h" };
 
 /**
- * What a frame is, against `ref`, the recent vowels' RMS: a nasal is voiced, low-F1 (< 420 Hz) and
- * at least 30% quieter than the vowels, its place from the murmur's second resonance (the engine's
- * [m n ŋ]: 1258-1304, 1462-1480, 2399-2491 Hz); a fricative is voiceless and mostly above 1 kHz:
- * [h] faint (under a quarter of the vowels), [s] centred over 4.5 kHz, [ɕ] lower.
- * ponytail: a quiet [u] after a loud [a] can read as a nasal; a per-place murmur model if it does
+ * A voiced frame's class (vowel, [l], [m], [n]) by linear discriminants trained on real speech:
+ * 9,228 voiced vowel, L, M and N tokens at least 40 ms long in the TSP database (23 adult English
+ * speakers, the TSP alignment), each at its middle. Features: log F1 and F2, the log of its RMS
+ * against the vowels' level, and the log share of energy in six bands to 4.5 kHz over the frame's
+ * middle 1024 samples. Held-out speakers: 81% right (vowel 92%, [l] 59%, [n] 61%, [m] 38%, mostly
+ * taken for [n]). Medians: a nasal has ~70% of its energy under 300 Hz (a vowel 15%, [l] 19%);
+ * [l] has F2 ~1050 Hz (a vowel ~1640).
+ * ponytail: trained against each recording's 90th-percentile vowel RMS (20 ms) where the listener
+ * passes its running hop-level reference, a few tenths of a log unit apart
+ */
+function voicedClass(frame: ArrayLike<number>, fs: number, heard: Heard, ref: number): "v" | "l" | "m" | "n" {
+  const p = powerSpectrum(frame, Math.max(0, (frame.length >> 1) - 512), 1024);
+  const band = new Array<number>(SON_BANDS.length - 1).fill(0);
+  let tot = 0;
+  for (let k = 1; k < p.length; k++) {
+    const f = (k * fs) / 1024;
+    if (f >= 4500) break;
+    let b = 0;
+    while (f >= SON_BANDS[b + 1]) b++;
+    band[b] += p[k];
+    tot += p[k];
+  }
+  const feat = [Math.log(heard.formants[0]), Math.log(heard.formants[1]), Math.log(heard.rms / Math.max(ref, 1e-9) + 1e-3), ...band.map((e) => Math.log(e / Math.max(tot, 1e-20) + 1e-4))];
+  let best: "v" | "l" | "m" | "n" = "v", bestScore = -Infinity;
+  for (const [c, w, b] of SON_LDA) {
+    const score = w.reduce((a, wi, i) => a + wi * feat[i], b);
+    if (score > bestScore) (bestScore = score), (best = c);
+  }
+  return best;
+}
+const SON_BANDS = [0, 300, 600, 1000, 1500, 2000, 3000, 4500];
+const SON_LDA: ["v" | "l" | "m" | "n", number[], number][] = [
+  ["v", [410.2167, 83.2488, -2.9629, 13.962, 14.6593, -29.8591, -0.4159, -11.8998, -2.9495, -8.6119], -1674.8191],
+  ["l", [409.1019, 80.4011, -3.9647, 14.2551, 14.8733, -29.6502, -0.3908, -12.3561, -3.7497, -8.1318], -1653.6985],
+  ["m", [399.0794, 82.5983, -3.7115, 15.1407, 12.4998, -29.697, 0.0046, -12.027, -2.829, -9.6714], -1612.0429],
+  ["n", [403.1751, 83.2763, -3.9331, 15.1952, 12.9876, -29.4573, -0.5399, -12.0692, -2.9475, -9.6349], -1642.4029],
+];
+
+/**
+ * What a frame is, against `ref`, the recent vowels' RMS: a voiced frame is a vowel, [l], [m] or
+ * [n] by `voicedClass` ([n] with its second resonance over 1950 Hz read as [ŋ], the engine's); a
+ * fricative is voiceless and mostly above 1 kHz: [h] faint (under a quarter of the vowels), [s]
+ * centred over 4.5 kHz, [ɕ] lower.
  */
 export function soundOf(frame: ArrayLike<number>, fs: number, heard: Heard, ref: number): Sound {
   if (heard.rms < 0.08 * ref || heard.rms < 0.004) return { kind: "silence" };
   if (heard.f0 > 0) {
-    const [f1, f2] = heard.formants;
-    if (f1 !== undefined && f1 < 420 && heard.rms < 0.7 * ref) return { kind: "nasal", place: f2 < 1370 ? "m" : f2 < 1950 ? "n" : "ŋ" };
+    if (heard.formants.length < 2) return { kind: "vowel" };
+    const c = voicedClass(frame, fs, heard, ref);
+    if (c === "l") return { kind: "lateral" };
+    if (c === "m") return { kind: "nasal", place: "m" };
+    if (c === "n") return { kind: "nasal", place: heard.formants[1] > 1950 ? "ŋ" : "n" };
     return { kind: "vowel" };
   }
   // judged on the latest ~21 ms alone: a frame that ends in a closure still holds the vowel before
@@ -417,9 +486,28 @@ export class StopTracker {
   get level(): number {
     return this.ref;
   }
+  /** where the last stop reported was released (absolute sample index in the stream pushed) */
+  lastRelease = -1;
+  /** whether its release fricated (an affricate) */
+  lastFricated = false;
   /** a release is heard but its burst not yet read */
   get releasing(): boolean {
     return this.pending >= 0 || this.init >= 0;
+  }
+  /** the buffer index, within two hops of `at`, whose hop rises most over the hop before */
+  private biggestRise(at: number): number {
+    const h = this.hop;
+    const rms = (i: number) => {
+      let s = 0;
+      for (let k = Math.max(0, i); k < Math.min(this.buf.length, i + h); k++) s += this.buf[k] * this.buf[k];
+      return Math.sqrt(s / h) + 1e-6;
+    };
+    let best = at, bestR = 0;
+    for (let i = at - 2 * h; i <= at + 2 * h; i += h) {
+      const r = rms(i) / rms(i - h);
+      if (r > bestR) (bestR = r), (best = i);
+    }
+    return best;
   }
   push(x: ArrayLike<number>): Event[] {
     for (let i = 0; i < x.length; i++) this.buf.push(x[i]);
@@ -538,7 +626,13 @@ export class StopTracker {
     if (this.pending >= 0 && this.afterHops >= 4 && end - this.pending >= Math.round(0.03 * this.fs) + 512) {
       // from two hops before the first loud one: a labial's weak burst starts under the threshold
       const at = this.pending - this.base;
-      out.push(fricated(this.buf, at, this.fs) ? "tɕ" : burstPlace(this.buf, Math.max(0, at - 2 * this.hop), this.fs));
+      // the release itself: the biggest rise from one 5 ms hop to the next within 10 ms of where
+      // the tracker heard it, as the place discriminants were trained (the tracker's own point,
+      // the first hop over 15% of the vowels, trains to 56% on held-out speakers, this one 67%)
+      const rel = this.biggestRise(at);
+      out.push(stopPlace(this.buf, rel, this.fs));
+      this.lastRelease = this.base + rel;
+      this.lastFricated = fricated(this.buf, rel, this.fs);
       this.pending = -1;
     }
     // keep ~4096 samples of history before whatever is still to be read
@@ -605,7 +699,7 @@ export class Listener {
     const key = JSON.stringify(now);
     const steady = key === this.last;
     this.last = key;
-    if ((now.kind === "nasal" || now.kind === "fricative") && !steady) return this.said;
+    if ((now.kind === "nasal" || now.kind === "fricative" || now.kind === "lateral") && !steady) return this.said;
     this.said = now;
     return now;
   }
@@ -623,13 +717,14 @@ export class Listener {
   private laryngealOf(heard: Heard): Laryngeal | undefined {
     const vot = this.stops.vot;
     if (vot < 0) return undefined;
-    if (vot < 35 && this.stop !== "tɕ") return "tense";
+    const affricate = this.stops.lastFricated;
+    if (vot < 35 && !affricate) return "tense";
     if (heard.f0 <= 0 || this.logF0 === 0) return undefined;
     const st = (12 * (Math.log(heard.f0) - this.logF0)) / Math.LN2;
     if (st <= -1.3) return "lax";
     // an affricate's VOT counts its frication too: the engine's ㅉ 70 ms, ㅊ 105 (ㅈ 35-85, told
     // by its low onset pitch first)
-    if (this.stop === "tɕ") return vot < 80 ? "tense" : "aspirated";
+    if (affricate) return vot < 80 ? "tense" : "aspirated";
     return "aspirated";
   }
 }

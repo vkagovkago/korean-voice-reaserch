@@ -157,6 +157,11 @@ function step(now: number): void {
   // a pitch: the folds vibrate at it; none (a fricative, a whisper): they stay apart
   if (h.f0 > 0) s.setSource({ f0: Math.min(1000, Math.max(60, h.f0)), voiced: true });
   else s.setSource({ voiced: false });
+  if (sound.kind === "lateral") {
+    // [l]: the tongue tip on the ridge, air around its sides
+    snap(r, poseOf("l", s.body));
+    return;
+  }
   if (sound.kind === "nasal" || sound.kind === "fricative") {
     // [h] is the folds alone: the mouth keeps the vowel's shape
     if (sound.place !== "h") snap(r, poseOf(sound.place, s.body));
@@ -176,8 +181,9 @@ function step(now: number): void {
     const prev = r.artic[k] ?? s.artic[k];
     next[k] = prev + FOLLOW * ((target[k] as number) - prev);
   }
-  // a vowel: the velum shut and the tongue tip resting
+  // a vowel: the velum shut, the tongue's sides sealed and its tip resting
   next.velum = 0;
+  next.lateral = 0;
   r.artic = next;
   s.setArtic(next, false);
 }

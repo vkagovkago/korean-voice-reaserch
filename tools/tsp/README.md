@@ -10,6 +10,7 @@ See [docs/speech-comparison.md](../../docs/speech-comparison.md) for the judge.
 | `check_text.py` | Whisper's check that each recording says its sentence |
 | `sentences.tsv` | recording, speaker, sentence (from each WAV's header), adults only, less 4 wrong recordings |
 | `alignment.tsv.gz` | recording, tier (word, phone), start, end (s), label (ARPAbet with stress) |
+| `mirror-eval.ts` | how the mic mirror's listener (`src/audio/listen.ts`) hears the real speakers: stop reports' precision, recall and place, and a confusion table per phone class (`bun tools/tsp/mirror-eval.ts [--speakers FA,MA]`) |
 
 ## Versions
 
