@@ -56,3 +56,15 @@ The Harvard sentences are from the IEEE Recommended Practice for Speech Quality 
 (1969). The Montreal Forced Aligner is MIT-licensed. Its `english_us_arpa` model and dictionary
 are CC BY 4.0 (McAuliffe, Socolof, Mihuc, Wagner & Sonderegger, Interspeech 2017). Neither is
 redistributed here: `setup.sh` fetches them.
+
+## The mic mirror on the real speakers: what didn't work
+
+**Coda (unreleased) stops by the vowel before the closure.** Linear discriminants over LPC F1/F2
+at 10, 30 and 60 ms before a closure, their change and the level's fall, trained on 2,900
+vowel-then-stop closures, reached 56% on held-out speakers (labial 47, alveolar 60, velar 55)
+when the closure's start came from the alignment. At the point the listener can know (60 ms into
+a gap after vowel-level sound, the gap's first silent hop as the start), 4,368 gaps (1,880 stop
+closures, 2,488 not) carried no usable signal: with the data's priors it said "no stop" 97% of the
+time and found 0-8% of each place; with equal priors 21% of what it reported was right. Not
+shipped. A better formant track over the whole transition, or an end-to-end frame classifier, are
+the next things to try.
